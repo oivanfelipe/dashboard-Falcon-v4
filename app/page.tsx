@@ -92,7 +92,7 @@ function FinanceiroTab({ metrics }: { metrics: MonthlyMetric[] }) {
         <KpiCard
           label="Faturamento (Ago)"
           value={fmt(latest?.faturamento)}
-          sub={prev ? `${latest?.faturamento > prev.faturamento ? '+' : ''}${(((latest?.faturamento - prev.faturamento) / prev.faturamento) * 100).toFixed(1)}% vs Jul` : undefined}
+          sub={prev && latest ? `${latest.faturamento > prev.faturamento ? '+' : ''}${(((latest.faturamento - prev.faturamento) / prev.faturamento) * 100).toFixed(1)}% vs Jul` : undefined}
           color="#e0e0f0"
         />
         <KpiCard
@@ -109,7 +109,7 @@ function FinanceiroTab({ metrics }: { metrics: MonthlyMetric[] }) {
           label="Margem (Ago)"
           value={fmtPct(latest?.margem_percentual)}
           sub={fmt(latest?.margem_valor)}
-          color={latest?.margem_percentual >= 0 ? '#00c87a' : '#e03a3a'}
+          color={(latest?.margem_percentual ?? 0) >= 0 ? '#00c87a' : '#e03a3a'}
         />
         <KpiCard
           label="OPS Direta"
@@ -120,7 +120,7 @@ function FinanceiroTab({ metrics }: { metrics: MonthlyMetric[] }) {
           label="% Folha"
           value={fmtPct(latest?.percentual_folha)}
           sub="Meta: ≤ 30%"
-          color={latest?.percentual_folha <= 30 ? '#00c87a' : '#f0a500'}
+          color={(latest?.percentual_folha ?? 100) <= 30 ? '#00c87a' : '#f0a500'}
         />
         <KpiCard
           label="Clientes"
@@ -252,6 +252,7 @@ function FinanceiroTab({ metrics }: { metrics: MonthlyMetric[] }) {
               <tr style={{ borderBottom: '1px solid #1e1e2e' }}>
                 {['Mês', 'Faturamento', 'MRR', 'Variável', 'OPS Direta', 'Margem R$', 'Margem %', 'Clientes', 'Invest.', '% Folha'].map(h => (
                   <th key={h} style={{ padding: '10px 16px', color: '#8888aa', textAlign: h === 'Mês' ? 'left' : 'right', fontWeight: 500, ...(h !== 'Mês' ? { whiteSpace: 'nowrap' as const } : {}) }}>
+                    {h}
                   </th>
                 ))}
               </tr>
