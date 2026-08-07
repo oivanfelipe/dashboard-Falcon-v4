@@ -251,9 +251,7 @@ function FinanceiroTab({ metrics }: { metrics: MonthlyMetric[] }) {
             <thead>
               <tr style={{ borderBottom: '1px solid #1e1e2e' }}>
                 {['Mês', 'Faturamento', 'MRR', 'Variável', 'OPS Direta', 'Margem R$', 'Margem %', 'Clientes', 'Invest.', '% Folha'].map(h => (
-                  <th key={h} style={{ padding: '10px 16px', color: '#8888aa', textAlign: 'right', fontWeight: 500, whiteSpace: 'nowrap' }}
-                    {...(h === 'Mês' ? { style: { padding: '10px 16px', color: '#8888aa', textAlign: 'left', fontWeight: 500 } } : {})}>
-                    {h}
+                  <th key={h} style={{ padding: '10px 16px', color: '#8888aa', textAlign: h === 'Mês' ? 'left' : 'right', fontWeight: 500, ...(h !== 'Mês' ? { whiteSpace: 'nowrap' as const } : {}) }}>
                   </th>
                 ))}
               </tr>
