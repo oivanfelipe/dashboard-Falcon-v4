@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
 const SYSTEM_PROMPT = `Você é o Falcon AI, assistente de análise de performance do Squad Falcon da V4 Company.
 
 Você tem acesso aos seguintes dados do squad (agosto/2026):
@@ -52,6 +50,12 @@ Fale em português do Brasil.`
 
 export async function POST(req: NextRequest) {
   try {
+    const apiKey = process.env.GROQ_API_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'GROQ_API_KEY não configurada.' }, { status: 500 })
+    }
+
+    const groq = new Groq({ apiKey })
     const { messages } = await req.json()
 
     const response = await groq.chat.completions.create({
