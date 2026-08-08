@@ -35,3 +35,45 @@ body {
 .recharts-tooltip-wrapper { outline: none !important; }
 
 .chat-messages { scrollbar-width: thin; }
+
+/* ── Mobile Responsiveness ─────────────────── */
+@media (max-width: 768px) {
+  .dash-header {
+    padding: 0 16px !important;
+    height: auto !important;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+  .dash-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .dash-tabs {
+    padding: 0 8px !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dash-tab-btn {
+    padding: 12px 12px !important;
+    white-space: nowrap;
+  }
+  .dash-tab-btn span:last-child {
+    display: none;
+  }
+  .dash-content {
+    padding: 16px 12px !important;
+    padding-right: 12px !important;
+  }
+  .kpi-row {
+    flex-direction: column !important;
+  }
+  .kpi-card {
+    min-width: unset !important;
+    width: 100% !important;
+  }
+  .grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+}

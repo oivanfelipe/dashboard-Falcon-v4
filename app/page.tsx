@@ -88,7 +88,7 @@ function FinanceiroTab({ metrics }: { metrics: MonthlyMetric[] }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* KPIs */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div className='kpi-row' style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <KpiCard
           label="Faturamento (Ago)"
           value={fmt(latest?.faturamento)}
@@ -314,7 +314,7 @@ function ClientesTab({ clients }: { clients: FalconClient[] }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Resumo flags */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div className='kpi-row' style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {[
           { key: 'all', label: 'Todos', count: flagCounts.all, color: '#e0e0f0' },
           { key: 'green', label: '🟢 Saudável', count: flagCounts.green, color: '#00c87a' },
@@ -456,7 +456,7 @@ function OportunidadesTab({ opportunities }: { opportunities: FalconOpportunity[
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* KPIs pipeline */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div className='kpi-row' style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <KpiCard label="Pipeline Ativo" value={fmt(pipeline)} sub="excl. perdidas" color="#f0a500" />
         <KpiCard label="Receita Ganha" value={fmt(ganho)} color="#00c87a" />
         <KpiCard label="Total Oportunidades" value={String(opportunities.length)} sub={`${opportunities.filter(o => o.estagio !== 'Perdida').length} ativas`} />
@@ -710,7 +710,7 @@ export default function Page() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0f' }}>
       {/* Header */}
-      <header style={{
+      <header className="dash-header" style={{
         background: '#111118', borderBottom: '1px solid #1e1e2e',
         padding: '0 32px', display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', height: 64, position: 'sticky', top: 0, zIndex: 50
@@ -728,7 +728,7 @@ export default function Page() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="dash-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <p style={{ color: '#4a4a6a', fontSize: 11 }}>
             Atualizado {lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </p>
@@ -753,12 +753,12 @@ export default function Page() {
       </header>
 
       {/* Tabs */}
-      <div style={{
+      <div className="dash-tabs" style={{
         background: '#111118', borderBottom: '1px solid #1e1e2e',
         padding: '0 32px', display: 'flex', gap: 0
       }}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id as any)}
+          <button key={t.id} onClick={() => setTab(t.id as any)} className="dash-tab-btn"
             style={{
               background: 'none', border: 'none',
               borderBottom: tab === t.id ? '2px solid #f0a500' : '2px solid transparent',
@@ -777,7 +777,7 @@ export default function Page() {
       </div>
 
       {/* Content */}
-      <main style={{
+      <main className="dash-content" style={{
         padding: '28px 32px',
         paddingRight: chatOpen ? 412 : 32,
         maxWidth: chatOpen ? '100%' : 1400,
