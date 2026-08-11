@@ -170,7 +170,7 @@ tbody tr:hover td{background:#0A0A0A;}
     <div class="mark">F</div>
     <div class="brand">Falcon Squad</div>
     <div class="hdr-sep"></div>
-    <div class="month-chip">Agosto 2026</div>
+    <div class="month-chip" id="month-chip">—</div>
   </div>
   <div class="hdr-r">
     <div class="hdr-stat"><div class="hdr-sv" style="color:#fff">21</div><div class="hdr-sl">clientes</div></div>
@@ -194,19 +194,19 @@ tbody tr:hover td{background:#0A0A0A;}
 <div class="panel on" id="p-fin">
   <div class="kpi-grid">
     <div class="kpi-card">
-      <div class="kpi-card-label">Faturamento · AGO</div>
+      <div class="kpi-card-label" id="k-fat-label">Faturamento</div>
       <div class="kpi-card-val" id="k-fat">—</div>
-      <div class="kpi-card-note"><span class="trend" id="k-fat-d">—</span>vs JUL</div>
+      <div class="kpi-card-note"><span class="trend" id="k-fat-d">—</span><span id="k-fat-vs">vs mês anterior</span></div>
       <canvas class="kpi-mini-canvas" id="mc-fat"></canvas>
     </div>
     <div class="kpi-card">
-      <div class="kpi-card-label">MRR · AGO</div>
+      <div class="kpi-card-label" id="k-mrr-label">MRR</div>
       <div class="kpi-card-val" style="color:var(--green)" id="k-mrr">—</div>
       <div class="kpi-card-note" id="k-mrr-note">—</div>
       <canvas class="kpi-mini-canvas" id="mc-mrr"></canvas>
     </div>
     <div class="kpi-card">
-      <div class="kpi-card-label">Margem · AGO</div>
+      <div class="kpi-card-label" id="k-marg-label">Margem</div>
       <div class="kpi-card-val" id="k-marg">—</div>
       <div class="kpi-card-note" id="k-marg-note">—</div>
       <canvas class="kpi-mini-canvas" id="mc-mg"></canvas>
@@ -255,9 +255,9 @@ tbody tr:hover td{background:#0A0A0A;}
 <!-- ═══ CLIENTES ═══ -->
 <div class="panel" id="p-cli">
   <div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-card-label">Clientes Ativos</div><div class="kpi-card-val" style="color:var(--green)">21</div><div class="kpi-card-note">Carteira Falcon · AGO/26</div></div>
-    <div class="kpi-card"><div class="kpi-card-label">Fee Total AGO</div><div class="kpi-card-val" style="font-size:22px" id="k-fee">—</div><div class="kpi-card-note">Detalhamento ago/26</div></div>
-    <div class="kpi-card"><div class="kpi-card-label">% Folha AGO</div><div class="kpi-card-val" style="color:var(--red2)">32%</div><div class="kpi-card-note">Meta: 27%</div></div>
+    <div class="kpi-card"><div class="kpi-card-label">Clientes Ativos</div><div class="kpi-card-val" style="color:var(--green)" id="k-cli-count">—</div><div class="kpi-card-note">Carteira Falcon</div></div>
+    <div class="kpi-card"><div class="kpi-card-label">Fee Total</div><div class="kpi-card-val" style="font-size:22px" id="k-fee">—</div><div class="kpi-card-note">Soma dos fees ativos</div></div>
+    <div class="kpi-card"><div class="kpi-card-label">% Folha</div><div class="kpi-card-val" id="k-cli-folha">—</div><div class="kpi-card-note">Meta: 27%</div></div>
   </div>
   <div class="card">
     <div class="card-hdr"><div class="card-title">Carteira Falcon · Agosto 2026</div></div>
@@ -364,42 +364,23 @@ tbody tr:hover td{background:#0A0A0A;}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-// ═══ DADOS ═══
-const MES=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO'];
-const DRE={
-  faturamento:[47726,47671,41685,78451,74760,114949,100556,101468],
-  mrr:[45482,45482,39673,62439,59060,91771,73766,72553],
-  variavel:[2245,2190,2012,16012,15700,23178,26790,28914],
-  pessoas:[27692,19525,27075,29458,29375,29375,29375,32507],
-  royalties:[14318,14301,12506,23535,22428,28737,25139,25367],
-  margem:[-65723,-20520,-42022,-22156,-21094,9582,2450,-5763],
-  margemPct:[-137.71,-43.05,-100.81,-28.24,-28.21,8.34,2.44,-5.68],
-  marco:3
-};
-DRE.folha=DRE.faturamento.map((f,i)=>+(DRE.pessoas[i]/f*100).toFixed(1));
+// ═══ SUPABASE (fonte: planilha sincronizada) ═══
+const SB_URL='https://mzwynanvhojzyoirvxkc.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16d3luYW52aG9qenlvaXJ2eGtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5Mjc3NjEsImV4cCI6MjEwMTUwMzc2MX0.UniVWAVDJgyHo8QGlqXjMeTBulsjEDdZ5nyBWowYO2s';
+const AUTO_REFRESH_MS=5*60*1000; // 5 minutos
 
-const FEE={
-  'Alice Salazar':5084.37,'ADias Gestão de Risco':2234.99,'Argiplam':5534.18,
-  'Clube da Casa Nova Era':5855.05,'Drogalis':7332,'Empório Mega 100':6027.63,
-  'FF Consultoria':null,'GSC Segurança':6049.56,'MasterMed':0,
-  'Miyamura Engenharia':3500,'Official Time':7500,'PetTreats':8500,
-  'Positive SEO':3618.97,'TB Rio':7500,'EML Pinturas EE':2435.33,
-  'Bispo':4017.59,'Point Thermic':4725,'Super Carros SDR':5500,
-  'TradePro':6744,'VS Med':5309.22,'Nagaura':4000
-};
+async function sbSelect(table,order){
+  const url=`${SB_URL}/rest/v1/${table}?select=*${order?`&order=${order}`:''}`;
+  const res=await fetch(url,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}});
+  if(!res.ok)throw new Error(`Falha ao buscar ${table}: ${res.status}`);
+  return res.json();
+}
 
-const CLIENTES=[
-  {n:'Alice Salazar',j:'J3',o:'16/01/26'},{n:'ADias Gestão de Risco',j:'J4',o:'24/07/26'},
-  {n:'Argiplam',j:'J3',o:'27/07/26'},{n:'Clube da Casa Nova Era',j:'J3',o:'06/04/26'},
-  {n:'Drogalis',j:'J3',o:'21/08/24'},{n:'Empório Mega 100',j:'J3',o:'27/07/26'},
-  {n:'FF Consultoria',j:'J4',o:'03/08/26'},{n:'GSC Segurança',j:'J3',o:'20/01/26'},
-  {n:'MasterMed',j:'J3',o:'05/01/26'},{n:'Miyamura Engenharia',j:'J3',o:'—'},
-  {n:'Official Time',j:'J3',o:'—'},{n:'PetTreats',j:'J3',o:'—'},
-  {n:'Positive SEO',j:'J3',o:'—'},{n:'TB Rio',j:'J3',o:'—'},
-  {n:'EML Pinturas EE',j:'J3',o:'—'},{n:'Bispo',j:'J3',o:'—'},
-  {n:'Point Thermic',j:'J3',o:'—'},{n:'Super Carros SDR',j:'J3',o:'—'},
-  {n:'TradePro',j:'J3',o:'—'},{n:'VS Med',j:'J3',o:'—'},{n:'Nagaura',j:'J3',o:'—'}
-];
+// ═══ DADOS (populados via loadData()) ═══
+let MES=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO'];
+let DRE={faturamento:[],mrr:[],variavel:[],pessoas:[],royalties:[],margem:[],margemPct:[],folha:[],marco:0};
+let FEE={};
+let CLIENTES=[];
 
 const QC=[
   {n:'TB Rio Elevadores',h03:'r',h10:'g',h17:'g',h24:'g',fn:'Sem visão clara dos MQLs — planilha não preenchida.',fato:'Sem visão da evolução dos leads, impossibilitando monitoramento de MQLs',causa:'Time comercial não está preenchendo a planilha de leads',acao:'Proposta em aprovação para implementação de CRM'},
@@ -446,14 +427,7 @@ const METAS=[
   {n:'Fat./Cabeça',meta:'—',jul:'R$11.2k',ago:'R$14.5k',pct:100}
 ];
 
-const OPPS=[
-  {c:'TB Rio',o:'CRM',p:'CRM',e:'Proposta',m:'ago/26',v:5000},
-  {c:'Drogalis',o:'Expansão SEO',p:'SEO',e:'Proposta',m:'set/26',v:3500},
-  {c:'Positive SEO',o:'Google Ads',p:'Mídia',e:'Negociação',m:'ago/26',v:2000},
-  {c:'Alice Salazar',o:'Tráfego Pago',p:'Mídia',e:'Identificada',m:'set/26',v:1500},
-  {c:'Miyamura',o:'Meet Alfred',p:'Mídia',e:'Proposta',m:'ago/26',v:1200},
-  {c:'Official Time',o:'Evento Aniversário',p:'Evento',e:'Identificada',m:'ago/26',v:0}
-];
+let OPPS=[];
 
 // ═══ HELPERS ═══
 const fK=v=>v==null?'—':(v<0?'-':'')+'R$'+(Math.abs(v)/1000).toFixed(0)+'k';
@@ -513,7 +487,15 @@ function miniChart(id,data,color){
 
 // ═══ FINANCEIRO ═══
 function initKPIs(){
-  const n=7,fat=DRE.faturamento[n],fd=((fat-DRE.faturamento[6])/Math.abs(DRE.faturamento[6])*100).toFixed(1);
+  if(!DRE.faturamento.length)return;
+  const n=DRE.faturamento.length-1,mLbl=MES[n]||'',fat=DRE.faturamento[n];
+  const prevFat=n>0?DRE.faturamento[n-1]:null;
+  const prevLbl=n>0?MES[n-1]:'';
+  const fd=prevFat?((fat-prevFat)/Math.abs(prevFat)*100).toFixed(1):'0.0';
+  document.getElementById('k-fat-label').textContent=`Faturamento · ${mLbl}`;
+  document.getElementById('k-mrr-label').textContent=`MRR · ${mLbl}`;
+  document.getElementById('k-marg-label').textContent=`Margem · ${mLbl}`;
+  document.getElementById('k-fat-vs').textContent=prevLbl?`vs ${prevLbl}`:'';
   document.getElementById('k-fat').textContent=fK(fat);
   const kfd=document.getElementById('k-fat-d');
   kfd.textContent=(parseFloat(fd)>=0?'+':'')+fd+'%';
@@ -527,11 +509,12 @@ function initKPIs(){
   miniChart('mc-fat',DRE.faturamento,'rgba(255,255,255,.7)');
   miniChart('mc-mrr',DRE.mrr,'rgba(34,168,90,.7)');
   miniChart('mc-mg',DRE.margem,'rgba(192,0,0,.7)');
+  const folha=DRE.folha[n];
   document.getElementById('fin-stats').innerHTML=`
-    <div class="sri"><div class="sri-l">Variável AGO</div><div class="sri-v" style="color:#fff">${fK(DRE.variavel[n])}</div></div>
-    <div class="sri"><div class="sri-l">Pessoas AGO</div><div class="sri-v" style="color:#fff">${fK(DRE.pessoas[n])}</div></div>
-    <div class="sri"><div class="sri-l">Royalties AGO</div><div class="sri-v" style="color:#fff">${fK(DRE.royalties[n])}</div></div>
-    <div class="sri"><div class="sri-l">% Folha AGO</div><div class="sri-v" style="color:#E03030">32%</div><div class="sri-n">Meta 27%</div></div>`;
+    <div class="sri"><div class="sri-l">Variável ${mLbl}</div><div class="sri-v" style="color:#fff">${fK(DRE.variavel[n])}</div></div>
+    <div class="sri"><div class="sri-l">Pessoas ${mLbl}</div><div class="sri-v" style="color:#fff">${fK(DRE.pessoas[n])}</div></div>
+    <div class="sri"><div class="sri-l">Royalties ${mLbl}</div><div class="sri-v" style="color:#fff">${fK(DRE.royalties[n])}</div></div>
+    <div class="sri"><div class="sri-l">% Folha ${mLbl}</div><div class="sri-v" style="color:${folha<=27?'#22A85A':'#E03030'}">${folha}%</div><div class="sri-n">Meta 27%</div></div>`;
   document.getElementById('ts').textContent=new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
 }
 
@@ -603,14 +586,23 @@ function buildComp(){
 function rebuildFin(){buildMain();buildMarg();buildFolha();buildComp();}
 
 // ═══ CLIENTES ═══
+const CLI_BADGE={green:'b-ok',yellow:'b-w',red:'b-r',na:'b-n'};
+const CLI_STATUS={green:'Saudável',yellow:'Atenção',red:'Crítico',na:'N/A'};
 function renderCli(){
   const tf=Object.values(FEE).reduce((s,v)=>s+(v||0),0);
   document.getElementById('k-fee').textContent=fK(tf);
+  document.getElementById('k-cli-count').textContent=CLIENTES.length;
+  const n=DRE.folha.length-1;
+  const folhaEl=document.getElementById('k-cli-folha');
+  if(n>=0){
+    folhaEl.textContent=DRE.folha[n]+'%';
+    folhaEl.style.color=DRE.folha[n]<=27?'var(--green)':'var(--red2)';
+  }
   document.getElementById('tbl-cli').innerHTML=CLIENTES.map((c,i)=>`
     <tr>
       <td style="color:var(--muted);font-size:10px">${i+1}</td>
       <td class="tnome">${c.n}</td>
-      <td><span class="badge b-ok">Ativo</span></td>
+      <td><span class="badge ${CLI_BADGE[c.flag]||'b-n'}">${CLI_STATUS[c.flag]||'—'}</span></td>
       <td style="color:${FEE[c.n]>0?'#fff':'var(--sub)'};font-weight:${FEE[c.n]>0?700:400}">${fFee(FEE[c.n])}</td>
       <td style="color:var(--sub)">${c.j}</td>
       <td style="color:var(--muted)">${c.o}</td>
@@ -772,7 +764,7 @@ function renderOpp(){
     options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' R$'+c.raw.toLocaleString('pt-BR')}}},
       scales:{x:{ticks:{callback:v=>'R$'+v},grid:{color:'#111'}},y:{grid:{display:false}}}}});
-  const ec={Proposta:'b-r',Identificada:'b-n',Negociação:'b-w',Fechado:'b-ok'};
+  const ec={Proposta:'b-r',Identificada:'b-n',Validada:'b-w',Ganha:'b-ok',Perdida:'b-r',Negociação:'b-w',Fechado:'b-ok'};
   document.getElementById('tbl-opp').innerHTML=OPPS.map(o=>`
     <tr>
       <td class="tnome">${o.c}</td><td>${o.o}</td>
@@ -800,8 +792,81 @@ function tog(k,el){
   active[k]=!active[k];el.classList.toggle('on',active[k]);buildMain();
 }
 
+// ═══ CARREGAMENTO DE DADOS (Supabase, sincronizado com a planilha) ═══
+function fmtMesLabel(v){
+  const map={'janeiro':'jan','fevereiro':'fev','março':'mar','abril':'abr','maio':'mai','junho':'jun','julho':'jul','agosto':'ago','setembro':'set','outubro':'out','novembro':'nov','dezembro':'dez'};
+  if(!v)return'—';
+  const [mes,ano]=v.split('-');
+  const m=map[mes?.toLowerCase()]||mes;
+  return ano?`${m}/${ano.slice(2)}`:m;
+}
+
+function applyMonthlyMetrics(rows){
+  MES=rows.map(r=>r.month_label);
+  DRE={
+    faturamento:rows.map(r=>+r.faturamento),
+    mrr:rows.map(r=>+r.mrr),
+    variavel:rows.map(r=>+r.variavel),
+    pessoas:rows.map(r=>+r.ops_direta),
+    royalties:rows.map(r=>+r.royalties_imposto),
+    margem:rows.map(r=>+r.margem_valor),
+    margemPct:rows.map(r=>+r.margem_percentual),
+    folha:rows.map(r=>+r.percentual_folha),
+    marco:Math.max(0,rows.findIndex(r=>r.is_ivan_period))
+  };
+}
+
+function applyClients(rows){
+  FEE={};
+  CLIENTES=rows.map(r=>{
+    FEE[r.cliente]=r.fee!=null?+r.fee:null;
+    return{n:r.cliente,j:r.tier||r.fase||'—',o:r.updated_at?new Date(r.updated_at).toLocaleDateString('pt-BR'):'—',flag:r.flag};
+  });
+}
+
+function applyOpportunities(rows){
+  OPPS=rows.map(r=>({
+    c:r.cliente,o:r.oportunidade,p:r.produto||'—',e:r.estagio,
+    m:fmtMesLabel(r.data_prevista),
+    v:r.valor_fechamento!=null?+r.valor_fechamento:(r.valor_proposta!=null?+r.valor_proposta:0)
+  }));
+}
+
+const MONTH_NAMES={JAN:'Janeiro',FEV:'Fevereiro',MAR:'Março',ABR:'Abril',MAI:'Maio',JUN:'Junho',JUL:'Julho',AGO:'Agosto',SET:'Setembro',OUT:'Outubro',NOV:'Novembro',DEZ:'Dezembro'};
+function updateHeaderStats(){
+  const n=DRE.faturamento.length-1;
+  if(n<0)return;
+  const lbl=MES[n];
+  document.getElementById('month-chip').textContent=`${MONTH_NAMES[lbl]||lbl} 2026`;
+  document.querySelector('.hdr-stat:nth-child(1) .hdr-sv').textContent=CLIENTES.length;
+  document.querySelector('.hdr-stat:nth-child(2) .hdr-sv').textContent=fK(DRE.mrr[n]);
+  const mgEl=document.querySelector('.hdr-stat:nth-child(3) .hdr-sv');
+  mgEl.textContent=fK(DRE.margem[n]);
+  mgEl.style.color=DRE.margem[n]>=0?'var(--green)':'var(--red2)';
+}
+
+async function loadData(){
+  try{
+    const [metrics,clients,opps]=await Promise.all([
+      sbSelect('monthly_metrics','month_order.asc'),
+      sbSelect('falcon_clients','fee.desc'),
+      sbSelect('falcon_opportunities','id.asc')
+    ]);
+    if(metrics?.length)applyMonthlyMetrics(metrics);
+    if(clients?.length)applyClients(clients);
+    if(opps)applyOpportunities(opps);
+
+    updateHeaderStats();
+    initKPIs();rebuildFin();renderCli();renderMetas();renderQC();renderOpp();
+  }catch(err){
+    console.error('Erro ao carregar dados do Supabase:',err);
+  }
+}
+
 // ═══ INIT ═══
-initKPIs();rebuildFin();renderCli();renderNPS();renderMetas();renderQC();renderOpp();
+renderNPS();
+loadData();
+setInterval(loadData,AUTO_REFRESH_MS);
 const wi={'h03':0,'h10':1,'h17':2,'h24':3};
 document.querySelectorAll('.wbtn')[wi[curWeek]]?.classList.add('on');
 document.getElementById('wk-note').textContent='← Semana atual';
