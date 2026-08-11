@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Empório Mega 100 · Planejamento Estratégico de Mídia Paga</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --red:#E10600;--red-dark:#B00500;--black:#111111;--gray:#6B6B6B;
+  --light:#F5F5F5;--border:#E4E4E4;--white:#FFFFFF;
+}
+html,body{height:100%;overflow:hidden;background:var(--white);color:var(--black);
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;}
+
+/* ── DECK ── */
+#deck{position:relative;width:100vw;height:100vh;}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;
+  padding:56px 80px 64px;background:var(--white);opacity:0;transition:opacity .35s ease;}
+.slide.on{display:flex;opacity:1;}
+
+/* ── SLIDE CHROME ── */
+.tag{display:inline-block;background:var(--red);color:#fff;font-size:11px;font-weight:800;
+  letter-spacing:.14em;text-transform:uppercase;padding:6px 14px;border-radius:2px;margin-bottom:22px;width:max-content;}
+h1{font-size:clamp(30px,3.6vw,52px);font-weight:900;letter-spacing:-.02em;line-height:1.12;max-width:1100px;}
+h1 em{color:var(--red);font-style:normal;}
+.sub{font-size:clamp(14px,1.2vw,18px);color:var(--gray);margin-top:14px;max-width:900px;line-height:1.55;}
+.body{flex:1;display:flex;flex-direction:column;justify-content:center;margin-top:8px;min-height:0;}
+footer{position:absolute;left:80px;right:80px;bottom:22px;display:flex;justify-content:space-between;
+  font-size:11px;font-weight:600;color:var(--gray);letter-spacing:.06em;text-transform:uppercase;}
+#bar{position:fixed;top:0;left:0;height:4px;background:var(--red);z-index:10;transition:width .3s ease;}
+#nav{position:fixed;right:24px;bottom:18px;display:flex;gap:8px;z-index:10;}
+#nav button{border:1px solid var(--border);background:#fff;width:34px;height:34px;border-radius:4px;
+  font-size:15px;cursor:pointer;color:var(--black);}
+#nav button:hover{border-color:var(--red);color:var(--red);}
+
+/* ── COMPONENTS ── */
+.grid{display:grid;gap:18px;}
+.g2{grid-template-columns:1fr 1fr;}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g4{grid-template-columns:repeat(4,1fr);}
+.card{background:var(--white);border:1px solid var(--border);border-top:3px solid var(--red);
+  border-radius:6px;padding:22px 24px;}
+.card.plain{border-top:3px solid var(--black);}
+.card h3{font-size:15px;font-weight:800;margin-bottom:8px;letter-spacing:-.01em;}
+.card p,.card li{font-size:13.5px;color:#3a3a3a;line-height:1.55;}
+.card ul{padding-left:18px;margin-top:6px;}
+.big{font-size:clamp(26px,2.6vw,40px);font-weight:900;letter-spacing:-.02em;line-height:1;}
+.big small{display:block;font-size:11px;font-weight:700;color:var(--gray);
+  text-transform:uppercase;letter-spacing:.1em;margin-top:8px;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
+.kpi{border:1px solid var(--border);border-radius:6px;padding:24px 22px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red);}
+
+/* funnel */
+.funnel{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.fstep{background:var(--black);color:#fff;text-align:center;padding:13px 10px;border-radius:4px;
+  font-size:13px;font-weight:700;letter-spacing:.02em;}
+.fstep span{color:#ffb3b0;font-weight:600;font-size:12px;margin-left:10px;}
+.fstep.red{background:var(--red);}
+
+/* flow */
+.flow{display:flex;align-items:stretch;gap:0;}
+.fbox{flex:1;border:1px solid var(--border);border-radius:6px;padding:16px 14px;text-align:center;position:relative;}
+.fbox b{display:block;font-size:13.5px;margin-bottom:5px;}
+.fbox small{font-size:11.5px;color:var(--gray);line-height:1.4;display:block;}
+.farr{display:flex;align-items:center;padding:0 8px;color:var(--red);font-size:20px;font-weight:900;}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{background:var(--black);color:#fff;text-align:left;padding:11px 14px;font-size:11.5px;
+  text-transform:uppercase;letter-spacing:.08em;}
+td{padding:11px 14px;border-bottom:1px solid var(--border);color:#333;line-height:1.45;}
+tr td:first-child{font-weight:700;color:var(--black);}
+.hl td{background:#FFF3F2;}
+.chip{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 9px;border-radius:3px;}
+.chip.ok{background:var(--black);color:#fff;}
+.chip.rec{background:#fff;border:1px solid var(--red);color:var(--red);}
+
+/* maturity ladder */
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:end;}
+.rung{border:1px solid var(--border);border-radius:6px;padding:18px 16px;background:var(--light);}
+.rung h4{font-size:14px;font-weight:900;margin-bottom:6px;color:var(--gray);}
+.rung p{font-size:12px;color:var(--gray);line-height:1.5;}
+.rung.now{background:var(--red);border-color:var(--red);}
+.rung.now h4,.rung.now p{color:#fff;}
+.rung.now h4 span{background:#fff;color:var(--red);font-size:9px;padding:2px 7px;border-radius:2px;
+  margin-left:8px;vertical-align:middle;letter-spacing:.08em;}
+
+/* timeline */
+.tl{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+.ph{border:1px solid var(--border);border-radius:6px;padding:18px 16px;position:relative;}
+.ph::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--black);}
+.ph.hot::before{background:var(--red);}
+.ph .n{font-size:10px;font-weight:800;color:var(--red);letter-spacing:.12em;text-transform:uppercase;}
+.ph h4{font-size:15px;font-weight:900;margin:5px 0 8px;}
+.ph p{font-size:12px;color:#444;line-height:1.5;}
+.note{margin-top:20px;font-size:12.5px;color:var(--gray);border-left:3px solid var(--red);
+  padding:8px 0 8px 16px;line-height:1.55;max-width:1000px;}
+
+/* cover */
+.cover{justify-content:center;}
+.cover .mark{width:56px;height:56px;background:var(--red);clip-path:polygon(0 0,100% 0,100% 70%,70% 100%,0 100%);
+  display:grid;place-items:center;color:#fff;font-weight:900;font-size:20px;margin-bottom:34px;}
+.cover h1{font-size:clamp(40px,5vw,72px);max-width:1150px;}
+.cover .meta{margin-top:36px;display:flex;gap:34px;font-size:13px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;color:var(--gray);}
+
+/* agenda */
+.agenda{display:grid;grid-template-columns:1fr 1fr;gap:10px 48px;counter-reset:ag;}
+.agenda div{display:flex;align-items:baseline;gap:16px;padding:11px 0;border-bottom:1px solid var(--border);
+  font-size:16px;font-weight:700;}
+.agenda div::before{counter-increment:ag;content:counter(ag,decimal-leading-zero);
+  color:var(--red);font-size:13px;font-weight:900;}
+
+@media (max-width:900px){
+  .slide{padding:34px 26px 60px;}
+  footer{left:26px;right:26px;}
+  .g2,.g3,.g4,.kpis,.ladder,.tl,.agenda{grid-template-columns:1fr;}
+  .flow{flex-direction:column;}
+  .farr{transform:rotate(90deg);justify-content:center;}
+}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="deck">
+
+<!-- 01 CAPA -->
+<section class="slide cover on">
+  <div class="mark">M</div>
+  <div class="tag">Planejamento Estratégico de Mídia Paga</div>
+  <h1>Empório Mega 100<br><em>Distribuidora Food Service</em></h1>
+  <p class="sub">Como transformar a maior operação comercial da região em uma máquina de aquisição digital de novos clientes — pizzarias e hamburguerias do estado de São Paulo.</p>
+  <div class="meta"><span>Google Ads + Meta Ads</span><span>Estado de São Paulo</span><span>Agosto de 2026</span></div>
+</section>
+
+<!-- 02 AGENDA -->
+<section class="slide">
+  <div class="tag">Agenda</div>
+  <h1>O caminho desta apresentação</h1>
+  <div class="body">
+    <div class="agenda">
+      <div>Contexto de mercado</div>
+      <div>Onde a empresa está hoje</div>
+      <div>Presença digital atual</div>
+      <div>Diagnóstico de maturidade</div>
+      <div>Concorrentes</div>
+      <div>Gargalos e oportunidades</div>
+      <div>Objetivo estratégico</div>
+      <div>Personas</div>
+      <div>Estratégia e canais</div>
+      <div>Quatro pilares</div>
+      <div>Plano de execução</div>
+      <div>Mensuração</div>
+      <div>Projeção de resultados</div>
+      <div>Investimento</div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 CONTEXTO DE MERCADO -->
+<section class="slide">
+  <div class="tag">Contexto de mercado</div>
+  <h1>O food service compra por relacionamento — mas a <em>busca por fornecedor começa no digital</em></h1>
+  <div class="body">
+    <div class="grid g3">
+      <div class="card"><h3>Mercado em recuperação e crescimento</h3><p>O food service brasileiro segue em expansão, puxado por delivery, hamburguerias artesanais e pizzarias de bairro. São Paulo concentra a maior densidade de estabelecimentos do país.</p></div>
+      <div class="card"><h3>Decisor pesquisa antes de trocar</h3><p>Donos e compradores pesquisam no Google por "distribuidora para pizzaria", "fornecedor de batata congelada", marcas como McCain, Bem Brasil e Heinz — demanda ativa com alta intenção comercial.</p></div>
+      <div class="card"><h3>WhatsApp é o balcão do B2B alimentar</h3><p>O pedido recorrente semanal acontece por WhatsApp e telefone. Quem entra na rotina de reposição do estabelecimento tende a permanecer — a troca de fornecedor é a barreira e também o prêmio.</p></div>
+    </div>
+    <p class="note">Implicação estratégica: existe demanda digital qualificada não capturada hoje pela Mega 100 — os concorrentes tradicionais têm marca, mas a busca é disputada a cada pesquisa.</p>
+  </div>
+</section>
+
+<!-- 04 ONDE ESTAMOS -->
+<section class="slide">
+  <div class="tag">Onde estamos</div>
+  <h1>Uma operação de <em>R$ 35 milhões/mês</em> construída sem mídia digital</h1>
+  <div class="body">
+    <div class="kpis">
+      <div class="kpi"><div class="big">R$ 35mi<small>Faturamento mensal (R$ 40mi no pico)</small></div></div>
+      <div class="kpi"><div class="big">5.800<small>Clientes ativos · 4.000 inativos</small></div></div>
+      <div class="kpi"><div class="big">R$ 1.800<small>Ticket médio · pedido mínimo R$ 350</small></div></div>
+      <div class="kpi"><div class="big">D+1<small>Entrega em 24h · frete grátis em todo o estado</small></div></div>
+    </div>
+    <div class="grid g3" style="margin-top:18px;">
+      <div class="card plain"><h3>Força comercial rara</h3><p>249 representantes, 36 pessoas no telemarketing, ~100 veículos adesivados. Maturidade comercial 9/10 segundo o próprio cliente.</p></div>
+      <div class="card plain"><h3>Aquisição 100% analógica</h3><p>Crescimento por indicação, boca a boca, representantes e telemarketing. Nunca houve tráfego pago estruturado para a distribuidora.</p></div>
+      <div class="card plain"><h3>Catálogo de 1.800+ itens</h3><p>Secos, refrigerados, congelados, bebidas e descartáveis — com marcas de alta procura: McCain, Bem Brasil, Heinz, Ekma, Artbread, Junior Grill.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 PRESENÇA DIGITAL -->
+<section class="slide">
+  <div class="tag">Presença digital atual</div>
+  <h1>A operação é gigante, mas <em>o digital ainda não vende</em></h1>
+  <div class="body">
+    <div class="grid g3">
+      <div class="card"><h3>Site — vitrine sem porta</h3><p>mega100.com.br posiciona bem no título ("Distribuidora de Alimentos para Food Service") e tem páginas institucionais — Quem Somos, Nossas Marcas, Catálogo, Ser Cliente. Porém formulários e pontos de contato foram desativados por segurança, não há tracking e o site não converte.</p></div>
+      <div class="card"><h3>Instagram — a marca errada vence</h3><p>O perfil @emporiomega100 (distribuidora) tem baixa relevância e engajamento. A conta das cestas, @emporiomega100cestas, tem ~14 mil seguidores e mais força — o digital hoje reforça a confusão de marca em vez de resolvê-la.</p></div>
+      <div class="card"><h3>WhatsApp — o ativo a explorar</h3><p>Principal canal comercial da empresa e destino natural dos leads. Falta número oficial de campanha, mensagens de entrada com identificação de origem e rastreamento por campanha/segmento.</p></div>
+    </div>
+    <p class="note">Consequência direta para a mídia: o site não pode ser o destino principal das campanhas neste momento. A jornada será <b>anúncio → WhatsApp → telemarketing</b>, com contas novas e independentes da Mega Cestas.</p>
+  </div>
+</section>
+
+<!-- 06 DIAGNÓSTICO -->
+<section class="slide">
+  <div class="tag">Diagnóstico de maturidade digital</div>
+  <h1>Estágio <em>V1</em>: antes de escalar, é preciso <em>encontrar os indicadores</em></h1>
+  <div class="body">
+    <div class="ladder">
+      <div class="rung now"><h4>V1<span>ESTAMOS AQUI</span></h4><p>Sem histórico de mídia paga, sem tracking, CPL/CAC desconhecidos, site sem conversão. Estrutura comercial forte, porém desconectada do digital.</p></div>
+      <div class="rung"><h4>V2</h4><p>Digital gera crescimento com oscilações; tracking em implementação; CPL e CAC acompanhados.</p></div>
+      <div class="rung"><h4>V3</h4><p>Faturamento digital previsível; dashboard com CPL, CAC, LTV, ROAS; integração marketing/vendas.</p></div>
+      <div class="rung"><h4>V4</h4><p>Aquisição diversificada, automação e personalização; indicadores guiam decisões estratégicas.</p></div>
+    </div>
+    <p class="note">O objetivo do primeiro ciclo não é volume máximo — é <b>provar o canal</b>: descobrir custo por conversa, custo por cadastro e custo por cliente reais, para escalar com base em dados e não em aposta.</p>
+  </div>
+</section>
+
+<!-- 07 CONCORRENTES -->
+<section class="slide">
+  <div class="tag">Concorrentes</div>
+  <h1>Os líderes têm tempo de mercado; <em>nós temos velocidade, nicho e relacionamento</em></h1>
+  <div class="body">
+    <div class="grid g2">
+      <div class="card plain"><h3>Quem disputa o mesmo cliente</h3>
+        <ul>
+          <li><b>Diretos:</b> PMG, Delly's, BID, Apetito, Mega G, Sansul, Fênix, Multifoods — mais tempo de mercado, relacionamentos antigos e maior lembrança de marca.</li>
+          <li><b>Indiretos:</b> Atacadão, Assaí e atacarejos regionais — preço unitário agressivo, mas exigem deslocamento e tempo do dono.</li>
+        </ul>
+      </div>
+      <div class="card"><h3>O que aprendemos e onde atacamos</h3>
+        <ul>
+          <li>Os grandes investem em presença digital ampla e generalista — <b>poucos falam diretamente com pizzarias e hamburguerias</b>.</li>
+          <li>Oportunidade aberta: comunicação por segmento, oferta por marca de alta procura e jornada 100% WhatsApp, sem burocracia.</li>
+          <li>Nossos trunfos anunciáveis: entrega D+1, frete grátis no estado inteiro, pedido mínimo de R$ 350, tudo em uma nota, atendimento até sábado.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">Não vamos vencer a briga de lembrança de marca no curto prazo — vamos vencer <b>a busca ativa</b> (Google) e <b>a oferta certa no feed do decisor certo</b> (Meta), onde tradição pesa menos que resposta rápida.</p>
+  </div>
+</section>
+
+<!-- 08 GARGALOS E OPORTUNIDADES -->
+<section class="slide">
+  <div class="tag">Gargalos e oportunidades</div>
+  <h1>O principal gargalo não é gerar lead — é <em>o que acontece depois do clique</em></h1>
+  <div class="body">
+    <div class="grid g2">
+      <div class="card"><h3>Gargalos a endereçar</h3>
+        <ul>
+          <li><b>Atendimento de novos leads em 24–48h:</b> lead de mídia esfria em horas; o prazo atual de cadastro pode derrubar a conversão.</li>
+          <li><b>Atribuição frágil:</b> reconhecer venda só pelo "início de conversa" não fecha o funil — precisamos da devolutiva comercial.</li>
+          <li><b>Dependência de criativos do cliente:</b> artes com o designer interno (Ítalo) exigem planejamento semanal.</li>
+          <li><b>Ofertas mudam diariamente:</b> risco de anunciar preço vencido sem rotina de validação com o Victor.</li>
+        </ul>
+      </div>
+      <div class="card plain"><h3>Oportunidades imediatas</h3>
+        <ul>
+          <li><b>Demanda ativa sem dono:</b> buscas por fornecedor/distribuidora e por marcas (McCain, Bem Brasil, Heinz) no estado de SP.</li>
+          <li><b>Base de 4.000 inativos:</b> públicos personalizados e reativação, respeitando LGPD.</li>
+          <li><b>Diferenciais anunciáveis fortes:</b> D+1, frete grátis estadual, mínimo R$ 350 — argumentos raros no segmento.</li>
+          <li><b>Capacidade comercial ociosa para leads digitais:</b> 36 pessoas de telemarketing prontas para receber demanda nova.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 09 OBJETIVO -->
+<section class="slide">
+  <div class="tag">Objetivo estratégico</div>
+  <h1>Validar o digital como <em>canal de aquisição de clientes food service</em> — com custo conhecido por cliente</h1>
+  <div class="body">
+    <div class="grid g3">
+      <div class="card"><h3>Objetivo do ciclo (90 dias)</h3><p>Gerar conversas comerciais qualificadas no WhatsApp para o telemarketing, priorizando pizzarias e hamburguerias de SP, e medir o funil completo até o primeiro pedido.</p></div>
+      <div class="card plain"><h3>Contribuição para a meta global</h3><p>A meta de 10 mil clientes ativos até dez/2026 (~840 ativações/mês) é da empresa como um todo. Com verba de ~R$ 4 mil/mês, a mídia entra como <b>frente complementar e mensurável</b> — não como responsável única pela meta.</p></div>
+      <div class="card plain"><h3>Objetivos complementares</h3><p>Posicionar o Empório Mega 100 como distribuidora (separado da Mega Cestas), construir públicos digitais próprios, identificar produtos-isca de melhor performance e preparar a escala.</p></div>
+    </div>
+    <p class="note">Regra do jogo: primeiro <b>provar</b> (custo por conversa → cadastro → pedido), depois <b>escalar</b> com aprovação do cliente.</p>
+  </div>
+</section>
+
+<!-- 10 PERSONAS -->
+<section class="slide">
+  <div class="tag">Personas</div>
+  <h1>Dois decisores, uma mesma dor: <em>a operação não pode parar</em></h1>
+  <div class="body">
+    <div class="grid g2">
+      <div class="card"><h3>🍕 Dono de pizzaria — "Seu Marcos"</h3>
+        <ul>
+          <li><b>Perfil:</b> 35–60 anos, dono ou comprador de pizzaria de bairro/delivery; compra semanal de mussarela, calabresa, molhos e embalagens.</li>
+          <li><b>Dor:</b> preço da mussarela aperta a margem; medo de ficar sem insumo no fim de semana.</li>
+          <li><b>Gatilhos:</b> preço competitivo da mussarela, entrega D+1, tudo em um pedido só, frete grátis.</li>
+          <li><b>Objeções:</b> fornecedor antigo de confiança; "atendem minha cidade?"; pedido mínimo.</li>
+          <li><b>Jornada:</b> pesquisa preço no Google, fecha e repõe pelo WhatsApp.</li>
+        </ul>
+      </div>
+      <div class="card"><h3>🍔 Dono de hamburgueria — "Rafa"</h3>
+        <ul>
+          <li><b>Perfil:</b> 28–45 anos, hamburgueria artesanal ou dark kitchen; ativo no Instagram; decide rápido.</li>
+          <li><b>Dor:</b> muitos fornecedores diferentes para batata, pão, molhos e proteína; tempo perdido cotando.</li>
+          <li><b>Gatilhos:</b> marcas que o cliente conhece (McCain, Bem Brasil, Heinz, Artbread), reposição rápida, um fornecedor só.</li>
+          <li><b>Objeções:</b> não conhece a Mega 100; compara só o preço unitário; receio de atraso.</li>
+          <li><b>Jornada:</b> descobre no feed/busca, testa com um pedido pequeno, vira recorrente se a entrega cumprir.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 ESTRATÉGIA -->
+<section class="slide">
+  <div class="tag">Estratégia</div>
+  <h1>Capturar a demanda que <em>já existe</em> e provocar a troca onde ela <em>ainda não começou</em></h1>
+  <div class="body">
+    <div class="flow">
+      <div class="fbox"><b>Google Ads — captura</b><small>Quem já busca "distribuidora para pizzaria", "fornecedor de batata congelada", marcas e produtos. Alta intenção, fundo de funil.</small></div>
+      <div class="farr">→</div>
+      <div class="fbox" style="border-color:var(--red);border-width:2px;"><b>WhatsApp oficial</b><small>Destino único das campanhas, com mensagem de entrada identificando campanha, segmento e oferta. Centro da jornada.</small></div>
+      <div class="farr">→</div>
+      <div class="fbox"><b>Telemarketing (36)</b><small>Atendimento, cadastro e primeiro pedido. Devolutiva sobre qualidade do lead fecha o ciclo de otimização.</small></div>
+    </div>
+    <div class="flow" style="margin-top:16px;">
+      <div class="fbox"><b>Meta Ads — geração</b><small>Ofertas segmentadas por nicho (pizzaria × hamburgueria) com produtos-isca e diferenciais logísticos, direto para o WhatsApp.</small></div>
+      <div class="farr">→</div>
+      <div class="fbox"><b>Remarketing e públicos</b><small>Quem clicou, conversou ou está na base (inativos, com LGPD ok) vira público próprio — o ativo digital que hoje não existe.</small></div>
+      <div class="farr">→</div>
+      <div class="fbox"><b>Escala validada</b><small>Verba adicional apenas depois de conhecido o custo por cadastro e por cliente. Escala é consequência, não premissa.</small></div>
+    </div>
+    <p class="note">Mensagem-mestra: <b>"Abastecemos sua pizzaria/hamburgueria com marcas que o seu cliente conhece — entrega em 24h e frete grátis em todo o estado de SP."</b></p>
+  </div>
+</section>
+
+<!-- 12 CANAIS -->
+<section class="slide">
+  <div class="tag">Seleção de canais</div>
+  <h1>Dois canais contratados, <em>papéis claros</em> — e o que fica como recomendação</h1>
+  <div class="body">
+    <table>
+      <tr><th>Canal</th><th>Função</th><th>Persona / etapa</th><th>Status</th></tr>
+      <tr><td>Google Ads — Pesquisa</td><td>Capturar demanda ativa por segmento, produto e marca; proteger o nome "Empório Mega 100 distribuidora"</td><td>Ambas · fundo de funil</td><td><span class="chip ok">Contratado</span></td></tr>
+      <tr><td>Meta Ads — WhatsApp (CTWA)</td><td>Gerar conversas com ofertas segmentadas; remarketing; públicos da base e semelhantes</td><td>Ambas · meio/fundo</td><td><span class="chip ok">Contratado</span></td></tr>
+      <tr><td>Landing page dedicada</td><td>Destino rastreável com ofertas e FAQ (cidades, mínimo, frete) para elevar conversão do clique</td><td>Ambas · conversão</td><td><span class="chip rec">Recomendação</span></td></tr>
+      <tr><td>Revisão do site + tracking</td><td>Reativar formulários com segurança, instalar GA4/GTM — hoje o site não pode receber mídia</td><td>Infraestrutura</td><td><span class="chip rec">Recomendação</span></td></tr>
+      <tr><td>Social media orgânico</td><td>Separar a identidade da distribuidora da Mega Cestas e sustentar prova social</td><td>Marca · topo</td><td><span class="chip rec">Recomendação</span></td></tr>
+    </table>
+    <p class="note">Escopo contratado: gestão de tráfego pago (planejamento, campanhas, palavras-chave, orçamento, otimização, relatórios). Artes e vídeos: designer interno Ítalo, com direcionamento estratégico nosso e pedidos em rotina semanal.</p>
+  </div>
+</section>
+
+<!-- 13 QUATRO PILARES -->
+<section class="slide">
+  <div class="tag">Quatro pilares</div>
+  <h1>Aquisição e monetização puxam; <em>engajamento e retenção sustentam</em></h1>
+  <div class="body">
+    <div class="grid g4">
+      <div class="card"><h3>Aquisição</h3><ul><li>Google Pesquisa: campanhas por segmento (pizzaria/hamburgueria), por produto e por marca (McCain, Bem Brasil, Heinz).</li><li>Meta CTWA: conjuntos separados por nicho com produtos-isca.</li><li>Negativação de buscas de consumidor final, emprego e receitas.</li></ul></div>
+      <div class="card"><h3>Engajamento</h3><ul><li>Remarketing Meta para quem clicou/conversou e não cadastrou.</li><li>Criativos de prova: logística, frota, marcas, bastidores (produção: Ítalo).</li><li>Recomendação: linha editorial própria da distribuidora no Instagram.</li></ul></div>
+      <div class="card" style="border-top-width:5px;"><h3>Monetização ★</h3><ul><li>Jornada anúncio → WhatsApp → cadastro → pedido com fricção mínima.</li><li>Toda oferta com regras visíveis: preço, mínimo, validade, região.</li><li>Argumentos de fechamento: D+1, frete grátis, mínimo R$ 350, uma nota só.</li></ul></div>
+      <div class="card"><h3>Retenção</h3><ul><li>Públicos personalizados da base para reativação de inativos (LGPD ok).</li><li>Exclusão de clientes ativos das campanhas de aquisição.</li><li>Recomendação: rotina de recompra via telemarketing/WhatsApp com o jornal de ofertas.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 14 VERBA -->
+<section class="slide">
+  <div class="tag">Distribuição da verba</div>
+  <h1>R$ 3.972/mês concentrados onde a <em>intenção é maior</em></h1>
+  <div class="body">
+    <table>
+      <tr><th>Campanha</th><th>Plataforma</th><th>Verba/mês</th><th>%</th><th>Papel</th></tr>
+      <tr><td>Pesquisa — Segmentos</td><td>Google</td><td>R$ 1.200</td><td>30%</td><td>"distribuidora para pizzaria/hamburgueria", "atacadista food service" + cidade</td></tr>
+      <tr><td>Pesquisa — Produtos e marcas</td><td>Google</td><td>R$ 1.000</td><td>25%</td><td>"fornecedor batata McCain", "distribuidora de mussarela", "fornecedor Heinz"</td></tr>
+      <tr><td>CTWA — Pizzarias</td><td>Meta</td><td>R$ 800</td><td>20%</td><td>Oferta de mussarela e insumos; segmentação por interesse/comportamento B2B</td></tr>
+      <tr><td>CTWA — Hamburguerias</td><td>Meta</td><td>R$ 700</td><td>18%</td><td>Batatas, pães Artbread, molhos Heinz, cheddar; dark kitchens incluídas</td></tr>
+      <tr class="hl"><td>Remarketing + testes</td><td>Meta</td><td>R$ 272</td><td>7%</td><td>Reimpacto de quem clicou/conversou; reserva para testes de oferta</td></tr>
+    </table>
+    <p class="note">Distribuição inicial — será recalibrada mensalmente pelo custo por conversa qualificada e pela devolutiva do telemarketing. Contas novas e independentes da Mega Cestas (Google Ads, Meta BM, GA4/GTM próprios).</p>
+  </div>
+</section>
+
+<!-- 15 EXECUÇÃO -->
+<section class="slide">
+  <div class="tag">Plano de execução</div>
+  <h1>Cinco fases: <em>estruturar antes de anunciar</em>, validar antes de escalar</h1>
+  <div class="body">
+    <div class="tl">
+      <div class="ph hot"><div class="n">Fase 01 · Sem. 1–2</div><h4>Estruturar</h4><p>Contas novas (Google, Meta BM, GA4, GTM), número oficial de WhatsApp com rastreio de origem, palavras-chave e negativação, briefing de criativos ao Ítalo, rotina de validação de ofertas com o Victor.</p></div>
+      <div class="ph"><div class="n">Fase 02 · Sem. 3–6</div><h4>Adquirir</h4><p>Lançamento das pesquisas Google e CTWA por nicho. Meta da fase: volume mínimo de conversas para leitura estatística, não performance final.</p></div>
+      <div class="ph"><div class="n">Fase 03 · Mês 2</div><h4>Converter</h4><p>Feedback semanal do telemarketing sobre qualidade; ajuste de públicos, termos e ofertas; SLA de resposta a lead novo acordado com o comercial.</p></div>
+      <div class="ph"><div class="n">Fase 04 · Mês 3</div><h4>Otimizar</h4><p>Concentração de verba nos vencedores (segmento × produto × região); remarketing ativo; públicos semelhantes da base quando liberada (LGPD).</p></div>
+      <div class="ph"><div class="n">Fase 05 · Mês 4+</div><h4>Escalar</h4><p>Com custo por cadastro e por cliente conhecidos, proposta de verba adicional como cenário — condicionada à validação e aprovação do cliente.</p></div>
+    </div>
+    <p class="note">Dependências críticas do cliente: ofertas atualizadas (Victor), artes no prazo (Ítalo), atendimento ágil dos leads e devolutiva de cadastros/vendas. Cronograma, responsáveis e periodicidade de reuniões serão fechados no kickoff.</p>
+  </div>
+</section>
+
+<!-- 16 MENSURAÇÃO -->
+<section class="slide">
+  <div class="tag">Mensuração</div>
+  <h1>Conversa iniciada não é venda: <em>medimos o funil até o primeiro pedido</em></h1>
+  <div class="body" style="flex-direction:row;gap:40px;align-items:center;">
+    <div class="funnel" style="flex:1;">
+      <div class="fstep" style="width:100%;">INVESTIMENTO <span>verba + fee</span></div>
+      <div class="fstep" style="width:88%;">CLIQUE / ALCANCE <span>CPC · CTR</span></div>
+      <div class="fstep" style="width:74%;">CONVERSA INICIADA <span>custo por conversa</span></div>
+      <div class="fstep" style="width:60%;">LEAD QUALIFICADO <span>é food service? região ok?</span></div>
+      <div class="fstep" style="width:46%;">CADASTRO APROVADO <span>custo por cadastro</span></div>
+      <div class="fstep red" style="width:34%;">PRIMEIRO PEDIDO <span>CAC · ticket</span></div>
+      <div class="fstep red" style="width:24%;">RECOMPRA <span>LTV</span></div>
+    </div>
+    <div style="flex:1;">
+      <div class="card"><h3>O que precisamos receber do cliente</h3>
+        <ul>
+          <li>Leads atendidos e qualificados (por origem/campanha).</li>
+          <li>Cadastros solicitados e aprovados.</li>
+          <li>Primeiro pedido e valor; recompras.</li>
+          <li>Motivos de perda (preço, região, mínimo, fornecedor atual).</li>
+        </ul>
+      </div>
+      <div class="card plain" style="margin-top:14px;"><h3>Rotina de gestão</h3>
+        <p>Acompanhamento contínuo das plataformas, leitura semanal do funil com o telemarketing e relatório mensal executivo. Periodicidade das reuniões a definir em conjunto no kickoff.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 17 PROJEÇÃO -->
+<section class="slide">
+  <div class="tag">Projeção de resultados</div>
+  <h1>Cada cliente ativo vale ~<em>R$ 7.200/mês</em> — o CAC projetado se paga na primeira semana</h1>
+  <div class="body">
+    <table>
+      <tr><th>Cenário mensal (após estabilização)</th><th>Conversas</th><th>Cadastros</th><th>Novos clientes</th><th>CAC estimado</th><th>Receita recorrente potencial/mês</th></tr>
+      <tr><td>Conservador</td><td>≈ 140</td><td>≈ 35</td><td>≈ 14</td><td>≈ R$ 284</td><td>≈ R$ 100 mil</td></tr>
+      <tr class="hl"><td>Moderado</td><td>≈ 200</td><td>≈ 60</td><td>≈ 24</td><td>≈ R$ 166</td><td>≈ R$ 172 mil</td></tr>
+      <tr><td>Otimista</td><td>≈ 280</td><td>≈ 90</td><td>≈ 40</td><td>≈ R$ 99</td><td>≈ R$ 288 mil</td></tr>
+    </table>
+    <p class="note"><b>Premissas:</b> verba de R$ 3.972/mês; CPC Google R$ 3–4,50; custo por conversa Meta R$ 10–18; conversa→cadastro 25–35%; cadastro→pedido 40–60%; ticket R$ 1.800 e compra semanal (≈ R$ 7.200/cliente/mês). Com margem de 15–23%, um cliente gera R$ 1.080–1.650/mês de margem — o CAC se paga já no primeiro mês, mesmo no cenário conservador. <b>Valores são estimativas para validação nos primeiros 90 dias, não garantia de resultado.</b></p>
+  </div>
+</section>
+
+<!-- 18 INVESTIMENTO -->
+<section class="slide">
+  <div class="tag">Investimento</div>
+  <h1>R$ 10 mil/mês para <em>construir o canal que a empresa nunca teve</em></h1>
+  <div class="body">
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr);">
+      <div class="kpi"><div class="big">R$ 6.027,59<small>Fee de gestão — estratégia, campanhas, otimização, relatórios</small></div></div>
+      <div class="kpi"><div class="big">R$ 3.972,41<small>Verba de mídia — Google Ads + Meta Ads</small></div></div>
+      <div class="kpi"><div class="big">R$ 10.000<small>Teto mensal total definido pelo cliente</small></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:18px;">
+      <div class="card plain"><h3>O que o investimento compra neste ciclo</h3><p>Estrutura digital própria (contas, tracking, públicos), presença nas buscas de maior intenção do estado, fluxo constante de conversas qualificadas para o telemarketing e — principalmente — <b>os números que a empresa não tem hoje</b>: custo por conversa, por cadastro e por cliente.</p></div>
+      <div class="card"><h3>Cenário futuro de escala</h3><p>Validado o custo por cliente, a escala é aritmética: mais verba nos conjuntos vencedores, expansão por região e categoria, reativação da base. Qualquer aumento de investimento será apresentado como cenário, condicionado aos resultados e à aprovação do cliente.</p></div>
+    </div>
+    <p class="note"><b>Próximo passo:</b> kickoff para fechar cronograma, responsáveis, SLA de atendimento dos leads e rotina de ofertas — e colocar a Fase 01 em movimento.</p>
+  </div>
+</section>
+
+</div>
+
+<div id="nav">
+  <button id="prev" aria-label="Anterior">‹</button>
+  <button id="next" aria-label="Próximo">›</button>
+</div>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+let i=0;
+const bar=document.getElementById('bar');
+function go(n){
+  n=Math.max(0,Math.min(slides.length-1,n));
+  if(n===i && slides[i].classList.contains('on')){update();return;}
+  slides[i].classList.remove('on');
+  i=n;
+  slides[i].classList.add('on');
+  update();
+}
+function update(){
+  bar.style.width=((i+1)/slides.length*100)+'%';
+  slides.forEach((s,k)=>{
+    let f=s.querySelector('footer');
+    if(!f){f=document.createElement('footer');
+      f.innerHTML='<span>Empório Mega 100 · Planejamento de Mídia Paga</span><span>'+String(k+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0')+'</span>';
+      s.appendChild(f);}
+  });
+}
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(i+1);}
+  else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(i-1);}
+  else if(e.key==='Home'){go(0);}
+  else if(e.key==='End'){go(slides.length-1);}
+});
+document.getElementById('prev').onclick=()=>go(i-1);
+document.getElementById('next').onclick=()=>go(i+1);
+let tx=null;
+document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;});
+document.addEventListener('touchend',e=>{
+  if(tx===null)return;
+  const dx=e.changedTouches[0].clientX-tx;
+  if(dx<-50)go(i+1); else if(dx>50)go(i-1);
+  tx=null;
+});
+update();
+</script>
+</body>
+</html>
