@@ -10,14 +10,16 @@
  * células pelo texto ("FATURAMENTO", "% FOLHA", "Pago?"…), então
  * inserir ou remover linhas na planilha não quebra a sincronização.
  *
+ * Você NÃO precisa da chave service_role. A escrita passa pela Edge
+ * Function `sync-falcon`, que roda dentro do Supabase e é a única que
+ * enxerga a service_role. Este script só carrega um token de sincronismo.
+ *
  * ─── INSTALAÇÃO (uma vez) ──────────────────────────────────────────
  *  1. Abra a DRE_FALCON → Extensões → Apps Script
  *  2. Cole este arquivo, salve
  *  3. Projeto → Configurações → Propriedades do script, adicione:
- *       SUPABASE_URL          https://mzwynanvhojzyoirvxkc.supabase.co
- *       SUPABASE_SERVICE_KEY  <service_role key do projeto>
- *     (Supabase → Project Settings → API → service_role. Ela grava no
- *      banco; NUNCA coloque essa chave no index.html — lá vai só a anon.)
+ *       SYNC_TOKEN   <o token que veio junto com este arquivo>
+ *     Só isso. URL e chave pública já estão no código abaixo.
  *  4. Rode `dryRun` primeiro: ele lê tudo e escreve no log SEM gravar
  *     nada. Confira os números contra a planilha.
  *  5. Se estiver certo, rode `sincronizarTudo` uma vez (o Google vai
@@ -40,6 +42,11 @@ var MESES_EXTENSO = {
   JULHO:7, AGOSTO:8, SETEMBRO:9, OUTUBRO:10, NOVEMBRO:11, DEZEMBRO:12
 };
 var ANO = 2026;
+
+/** Endpoint de escrita e chave pública (a mesma que está no index.html —
+ *  sozinha ela só lê). O que autoriza a gravação é o SYNC_TOKEN. */
+var SYNC_URL = 'https://mzwynanvhojzyoirvxkc.supabase.co/functions/v1/sync-falcon';
+var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16d3luYW52aG9qenlvaXJ2eGtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5Mjc3NjEsImV4cCI6MjEwMTUwMzc2MX0.UniVWAVDJgyHo8QGlqXjMeTBulsjEDdZ5nyBWowYO2s';
 
 /** Rótulos da DRE → coluna da tabela monthly_metrics.
  *  Aceita os dois nomes usados na planilha (JAN–MAI vs JUN em diante). */
@@ -339,32 +346,23 @@ function lerFaturamento() {
   return itens;
 }
 
-// ─── Escrita no Supabase ───────────────────────────────────────────
+// ─── Escrita: um POST para a Edge Function ─────────────────────────
 
-function _req(metodo, caminho, corpo, prefer) {
-  var res = UrlFetchApp.fetch(_cfg('SUPABASE_URL') + '/rest/v1/' + caminho, {
-    method: metodo,
+function _enviar(payload) {
+  var res = UrlFetchApp.fetch(SYNC_URL, {
+    method: 'post',
     contentType: 'application/json',
     headers: {
-      apikey: _cfg('SUPABASE_SERVICE_KEY'),
-      Authorization: 'Bearer ' + _cfg('SUPABASE_SERVICE_KEY'),
-      Prefer: prefer || 'return=minimal'
+      Authorization: 'Bearer ' + ANON_KEY,
+      'x-sync-token': _cfg('SYNC_TOKEN')
     },
-    payload: corpo ? JSON.stringify(corpo) : undefined,
+    payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
-  var cod = res.getResponseCode();
-  if (cod >= 300) throw new Error(metodo + ' ' + caminho + ' → ' + cod + ' ' + res.getContentText());
-  return res.getContentText();
-}
-
-function _upsert(tabela, linhas, conflito) {
-  if (!linhas.length) return 0;
-  for (var i = 0; i < linhas.length; i += 200) {
-    _req('POST', tabela + '?on_conflict=' + conflito, linhas.slice(i, i + 200),
-         'resolution=merge-duplicates,return=minimal');
-  }
-  return linhas.length;
+  var cod = res.getResponseCode(), txt = res.getContentText();
+  if (cod === 401) throw new Error('SYNC_TOKEN inválido ou ausente — confira as Propriedades do script.');
+  if (cod >= 300) throw new Error('sync-falcon → ' + cod + ' ' + txt);
+  return JSON.parse(txt);
 }
 
 // ─── Entradas ──────────────────────────────────────────────────────
@@ -412,32 +410,19 @@ function dryRun() {
   return { dre:dre, pessoas:pessoas, faturamento:fat };
 }
 
-/** Lê a planilha e grava no Supabase. */
+/** Lê a planilha e manda tudo de uma vez para a Edge Function. */
 function sincronizarTudo() {
   var dre = lerDRE();
   if (!dre.length) throw new Error('Nenhum mês lido da DRE — verifique os rótulos da planilha.');
-  _upsert('monthly_metrics', dre, 'month_order,year');
 
-  var pessoas = lerPessoas();
-  if (pessoas.length) {
-    // troca completa: o time muda de composição, não só de valor
-    _req('DELETE', 'falcon_pessoas?id=gt.0');
-    _req('POST', 'falcon_pessoas', pessoas);
-  }
+  var payload = { dre: dre };
+  var pessoas = lerPessoas();      if (pessoas.length) payload.pessoas = pessoas;
+  var fat = lerFaturamento();      if (fat.length)     payload.faturamento = fat;
 
-  var fat = lerFaturamento();
-  if (fat.length) {
-    var meses = {};
-    fat.forEach(function (f) { meses[f.mes_order] = f.ano; });
-    // apaga e reinsere mês a mês (linhas podem sair da planilha)
-    Object.keys(meses).forEach(function (ord) {
-      _req('DELETE', 'falcon_faturamento?ano=eq.' + meses[ord] + '&mes_order=eq.' + ord);
-    });
-    _upsert('falcon_faturamento', fat, 'ano,mes_order,linha');
-  }
+  var r = _enviar(payload);
 
   var msg = Utilities.formatString('Sync OK · %s meses · %s pessoas · %s lançamentos',
-    dre.length, pessoas.length, fat.length);
+    r.resumo.dre || 0, r.resumo.pessoas || 0, r.resumo.faturamento || 0);
   Logger.log(msg);
   PropertiesService.getScriptProperties()
     .setProperty('ULTIMO_SYNC', new Date().toISOString() + ' — ' + msg);

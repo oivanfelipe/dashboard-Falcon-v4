@@ -5,13 +5,21 @@ diretamente: ele lê o **Supabase**, que funciona como a camada de leitura
 rápida. Quem alimenta o Supabase é a planilha.
 
 ```
-DRE_FALCON (Google Sheets)          Supabase                 index.html
-  ├── DRE mensal            ──┐                             (Vercel)
-  ├── Investidores Time     ──┼──> monthly_metrics    ──┐
-  └── Abas mensais/cliente  ──┤    falcon_pessoas     ──┼──> fetch a cada
-                              └──> falcon_faturamento ──┤    3 min + ao
-Aba de oportunidades        ─────> falcon_opportunities ─┘    voltar pra aba
+  Google Sheets            Edge Function            Postgres          Vercel
+                          (dentro do Supabase)
+
+  DRE_FALCON      ──┐                          ┌─ monthly_metrics
+  planilha NPS    ──┼─POST /sync-falcon──────► │  falcon_faturamento ──► index.html
+  (Apps Script)     │   x-sync-token           │  falcon_pessoas         lê a cada
+                    │                          │  falcon_nps             3 min com
+                    │   a função usa a         └─ falcon_parametros      a chave
+                    │   service_role, que                                anon
+                    │   nunca sai do Supabase                          (só leitura)
 ```
+
+**Ninguém fora do Supabase manuseia a `service_role`.** O Apps Script se
+autentica com um token de sincronismo; a Edge Function valida esse token
+contra a tabela `sync_tokens` e só então grava.
 
 ## Cadência de atualização
 
@@ -31,21 +39,38 @@ horário da última leitura — fica âmbar/vermelho se a busca falhar.
 
 1. Abra a **DRE_FALCON** → *Extensões* → *Apps Script*
 2. Cole o conteúdo de [`DRE_Falcon_Sync.gs`](./DRE_Falcon_Sync.gs) e salve
-3. *Projeto* → *Configurações* → *Propriedades do script*:
+3. *Projeto* → *Configurações* → *Propriedades do script*, adicione **uma**
+   propriedade:
 
    | Propriedade | Valor |
    |---|---|
-   | `SUPABASE_URL` | `https://mzwynanvhojzyoirvxkc.supabase.co` |
-   | `SUPABASE_SERVICE_KEY` | a chave `service_role` do projeto |
+   | `SYNC_TOKEN` | o token de sincronismo (começa com `flc_`) |
 
-   A `service_role` fica **só** no Apps Script. O `index.html` usa a chave
-   `anon`, que tem permissão apenas de leitura (política RLS `SELECT`).
+   URL e chave pública já estão no topo do script. Não há chave secreta
+   para configurar.
 
 4. **Rode `dryRun` primeiro.** Ele lê a planilha inteira e escreve tudo no
    log sem gravar nada, inclusive um aviso quando a cascata da DRE
    (faturamento − custos = margem) não fecha. Confira contra a planilha.
 5. Se estiver certo: rode `sincronizarTudo` (o Google vai pedir
    autorização) e depois `instalarGatilhos`.
+
+### Se o token vazar
+
+Gere outro e atualize os dois Apps Scripts:
+
+```sql
+update public.sync_tokens
+   set token = 'flc_' || replace(gen_random_uuid()::text,'-','')
+              || replace(gen_random_uuid()::text,'-',''),
+       criado_em = now()
+ where nome = 'planilhas';
+
+select token from public.sync_tokens where nome = 'planilhas';
+```
+
+O token velho para de funcionar na hora. `select usado_em from
+sync_tokens` mostra quando foi o último sync bem-sucedido.
 
 ## Por que o parser não quebra fácil
 
@@ -87,9 +112,8 @@ Bispo / Performance Inside Sales, 3× em agosto).
 ## Instalação do sync de NPS
 
 Mesma receita, mas na **planilha de clientes** (a que tem a aba `NPS - Q2`):
-cole [`NPS_Sync.gs`](./NPS_Sync.gs), configure `SUPABASE_URL` e
-`SUPABASE_SERVICE_KEY`, rode `dryRunNPS`, depois `sincronizarNPS` e
-`instalarGatilhosNPS`.
+cole [`NPS_Sync.gs`](./NPS_Sync.gs), configure o mesmo `SYNC_TOKEN`, rode
+`dryRunNPS`, depois `sincronizarNPS` e `instalarGatilhosNPS`.
 
 Opcionalmente defina `ABA_NPS` com o nome exato da aba. Sem isso o script
 procura sozinho a primeira aba que tenha um cabeçalho com `STATUS`, `NPS` e
@@ -115,3 +139,42 @@ DRE_FALCON e alimenta o medidor de ponto de equilíbrio e a aba de Metas:
 Esses valores mudam quando o time muda de tamanho. Hoje são atualizados à
 mão (`update falcon_parametros set valor = … where chave = …`); o parser da
 DRE ainda não lê o bloco PEQUILIBRIO automaticamente.
+
+
+## A Edge Function `sync-falcon`
+
+Código em [`edge/sync-falcon.ts`](./edge/sync-falcon.ts), já publicada no
+projeto. Recebe um POST com qualquer combinação destas chaves:
+
+```json
+{
+  "dre":         [ /* linhas de monthly_metrics    */ ],
+  "pessoas":     [ /* falcon_pessoas               */ ],
+  "faturamento": [ /* falcon_faturamento           */ ],
+  "nps":         [ /* falcon_nps                   */ ],
+  "parametros":  [ { "chave": "...", "valor": 0 }    ]
+}
+```
+
+Cada bloco tem a semântica certa embutida: `dre` e `parametros` fazem
+upsert; `pessoas` e `nps` são trocados por inteiro; `faturamento` apaga e
+reinsere só os meses presentes no payload. Responde
+`{ ok: true, resumo: { ... } }` com a contagem do que foi gravado, ou 401
+se o token não bater.
+
+Para republicar depois de editar o arquivo, use o MCP do Supabase ou
+`supabase functions deploy sync-falcon`.
+
+## O que a chave pública (`anon`) pode fazer
+
+Ela está dentro do `index.html`, então vale tratar como pública. Foi testada:
+
+| Ação | Resultado |
+|---|---|
+| Ler `monthly_metrics`, `falcon_faturamento`, `falcon_pessoas`, `falcon_nps`, `falcon_parametros` | permitido — é o que o dashboard faz |
+| Ler `sync_tokens` | bloqueado |
+| Inserir, alterar ou apagar qualquer tabela | bloqueado (RLS só tem política de `SELECT`) |
+
+Vale lembrar que os salários do time são legíveis por quem tiver essa
+chave, e o dashboard no Vercel está sem autenticação. Se isso for um
+problema, o caminho é pôr proteção de acesso no projeto do Vercel.

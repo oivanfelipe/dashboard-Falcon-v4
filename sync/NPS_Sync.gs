@@ -14,14 +14,15 @@
  * e uma coluna CLIENTE + uma coluna SQUAD à esquerda. Só as linhas com
  * SQUAD = FALCON são sincronizadas.
  *
+ * Não precisa da service_role: a escrita passa pela Edge Function
+ * `sync-falcon`, que roda dentro do Supabase.
+ *
  * ─── INSTALAÇÃO ────────────────────────────────────────────────────
  *  1. Abra a planilha de clientes → Extensões → Apps Script
  *  2. Cole este arquivo, salve
  *  3. Propriedades do script:
- *       SUPABASE_URL          https://mzwynanvhojzyoirvxkc.supabase.co
- *       SUPABASE_SERVICE_KEY  <service_role key>
- *       ABA_NPS               NPS - Q2      (opcional; sem isso ele
- *                                            procura a aba sozinho)
+ *       SYNC_TOKEN   <o mesmo token usado na DRE_FALCON>
+ *       ABA_NPS      NPS - Q2   (opcional; sem isso ele acha a aba sozinho)
  *  4. Rode `dryRunNPS`, confira o log, depois `sincronizarNPS` e
  *     `instalarGatilhosNPS`.
  * ═══════════════════════════════════════════════════════════════════
@@ -29,6 +30,9 @@
 
 var ANO_NPS = 2026;
 var SQUAD   = 'FALCON';
+
+var SYNC_URL = 'https://mzwynanvhojzyoirvxkc.supabase.co/functions/v1/sync-falcon';
+var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16d3luYW52aG9qenlvaXJ2eGtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5Mjc3NjEsImV4cCI6MjEwMTUwMzc2MX0.UniVWAVDJgyHo8QGlqXjMeTBulsjEDdZ5nyBWowYO2s';
 
 var MES_EXT = {
   JANEIRO:1, FEVEREIRO:2, 'MARÇO':3, MARCO:3, ABRIL:4, MAIO:5, JUNHO:6,
@@ -144,17 +148,18 @@ function lerNPS() {
   return itens;
 }
 
-function _reqN(metodo, caminho, corpo, prefer) {
-  var res = UrlFetchApp.fetch(_cfgN('SUPABASE_URL') + '/rest/v1/' + caminho, {
-    method: metodo, contentType: 'application/json',
-    headers: { apikey: _cfgN('SUPABASE_SERVICE_KEY'),
-               Authorization: 'Bearer ' + _cfgN('SUPABASE_SERVICE_KEY'),
-               Prefer: prefer || 'return=minimal' },
-    payload: corpo ? JSON.stringify(corpo) : undefined,
+function _enviarNPS(itens) {
+  var res = UrlFetchApp.fetch(SYNC_URL, {
+    method: 'post', contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + ANON_KEY,
+               'x-sync-token': _cfgN('SYNC_TOKEN') },
+    payload: JSON.stringify({ nps: itens }),
     muteHttpExceptions: true
   });
-  if (res.getResponseCode() >= 300)
-    throw new Error(metodo + ' ' + caminho + ' → ' + res.getResponseCode() + ' ' + res.getContentText());
+  var cod = res.getResponseCode(), txt = res.getContentText();
+  if (cod === 401) throw new Error('SYNC_TOKEN inválido ou ausente — confira as Propriedades do script.');
+  if (cod >= 300) throw new Error('sync-falcon → ' + cod + ' ' + txt);
+  return JSON.parse(txt);
 }
 
 /** Lê e imprime, sem gravar. */
@@ -189,12 +194,8 @@ function dryRunNPS() {
 function sincronizarNPS() {
   var itens = lerNPS();
   if (!itens.length) throw new Error('Nenhum registro lido — confira a aba de NPS.');
-  // troca completa do ano: linhas podem sair da planilha
-  _reqN('DELETE', 'falcon_nps?ano=eq.' + ANO_NPS);
-  for (var i = 0; i < itens.length; i += 200) {
-    _reqN('POST', 'falcon_nps', itens.slice(i, i + 200));
-  }
-  var msg = 'Sync NPS OK · ' + itens.length + ' registros';
+  var r = _enviarNPS(itens);
+  var msg = 'Sync NPS OK · ' + (r.resumo.nps || 0) + ' registros';
   Logger.log(msg);
   PropertiesService.getScriptProperties()
     .setProperty('ULTIMO_SYNC_NPS', new Date().toISOString() + ' — ' + msg);
