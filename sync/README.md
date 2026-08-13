@@ -1,25 +1,70 @@
-# Sincronização das planilhas → Dashboard
+# Como o dashboard recebe os dados
 
-O dashboard (`index.html`, publicado no Vercel) não lê o Google Sheets
-diretamente: ele lê o **Supabase**, que funciona como a camada de leitura
-rápida. Quem alimenta o Supabase é a planilha.
+Há **dois caminhos**. O dashboard tenta o primeiro e, se ele não responder,
+cai no segundo sem ficar em branco.
 
 ```
-  Google Sheets            Edge Function            Postgres          Vercel
-                          (dentro do Supabase)
+ A · AO VIVO (recomendado)
+   DRE_FALCON ──┐
+                ├─ Apps Script publicado como Web App ──► index.html
+   planilha NPS ┘   (lê com a sua permissão, devolve JSON)     (Vercel)
 
-  DRE_FALCON      ──┐                          ┌─ monthly_metrics
-  planilha NPS    ──┼─POST /sync-falcon──────► │  falcon_faturamento ──► index.html
-  (Apps Script)     │   x-sync-token           │  falcon_pessoas         lê a cada
-                    │                          │  falcon_nps             3 min com
-                    │   a função usa a         └─ falcon_parametros      a chave
-                    │   service_role, que                                anon
-                    │   nunca sai do Supabase                          (só leitura)
+ B · CACHE (rede de segurança, já funcionando)
+   planilhas ──► Apps Script ──► Edge Function ──► Postgres ──► index.html
 ```
 
-**Ninguém fora do Supabase manuseia a `service_role`.** O Apps Script se
-autentica com um token de sincronismo; a Edge Function valida esse token
-contra a tabela `sync_tokens` e só então grava.
+O indicador no topo direito diz de onde veio: **planilha ·** ao vivo, ou
+**cache ·** último sync. Se o Web App cair, ele fica âmbar e avisa
+"planilha fora do ar, mostrando o último sync". O botão **Atualizar** relê
+na hora, ignorando qualquer cache.
+
+---
+
+# A · Ao vivo (Web App)
+
+O mais simples: sem token, sem gatilhos, sem escrita em banco. A planilha
+vira uma API de leitura.
+
+1. **DRE_FALCON** → *Extensões* → *Apps Script*
+2. O projeto já precisa ter `DRE_Falcon_Sync.gs` (é de lá que vêm os
+   parsers). Adicione um arquivo novo e cole
+   [`Falcon_WebApp.gs`](./Falcon_WebApp.gs)
+3. Rode **`testarWebApp`** — autoriza o script e escreve no log tudo que
+   seria publicado. Confira os números contra a planilha.
+4. *Implantar* → *Nova implantação* → tipo **App da Web**
+   - Executar como: **Eu**
+   - Quem pode acessar: **Qualquer pessoa**
+5. Copie a URL (termina em `/exec`) e cole em `SHEETS_API`, no topo do
+   bloco `<script>` do `index.html`. Commit, e o Vercel publica.
+
+**"Executar como: Eu"** é o que dispensa qualquer login: o script lê as
+planilhas com a sua permissão. Em contrapartida, **quem tiver a URL vê os
+dados, salários inclusive.** Trate como confidencial; para revogar, crie
+uma implantação nova (a URL antiga morre).
+
+O Web App guarda a resposta em cache por 2 minutos para não reler a
+planilha inteira a cada visita. O botão Atualizar manda `?forcar=1` e
+ignora o cache.
+
+### O que este caminho resolve sozinho
+
+- **Ponto de equilíbrio** deixa de ser digitado à mão: `lerParametros()`
+  lê o bloco `PEQUILIBRIO` da própria DRE.
+- **NPS** vem junto, lido da planilha de clientes por ID — um script só.
+- Um mês novo na planilha aparece no dashboard na mesma hora.
+
+### O que ele não cobre
+
+**Oportunidades** continuam vindo do Supabase: elas moram numa terceira
+planilha que eu não localizei. Me passe o link e eu ligo no mesmo Web App.
+
+---
+
+# B · Cache (Supabase)
+
+Vale como rede de segurança do caminho A, e é o que está no ar hoje.
+A `service_role` nunca sai do Supabase: o Apps Script se autentica com um
+token de sincronismo, e a Edge Function valida esse token antes de gravar.
 
 ## Cadência de atualização
 
@@ -136,9 +181,9 @@ DRE_FALCON e alimenta o medidor de ponto de equilíbrio e a aba de Metas:
 | `meta_nps` | 70 | meta de NPS |
 | `meta_csat` | 4 | meta de CSAT (escala 1–5) |
 
-Esses valores mudam quando o time muda de tamanho. Hoje são atualizados à
-mão (`update falcon_parametros set valor = … where chave = …`); o parser da
-DRE ainda não lê o bloco PEQUILIBRIO automaticamente.
+No caminho **A** esses valores saem direto do bloco `PEQUILIBRIO` da DRE.
+No caminho **B** ainda são atualizados à mão
+(`update falcon_parametros set valor = … where chave = …`).
 
 
 ## A Edge Function `sync-falcon`

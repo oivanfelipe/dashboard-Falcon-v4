@@ -51,6 +51,17 @@ body{background:var(--bg);color:var(--ink);min-height:100vh;
 .dot.err{background:var(--red2);animation:none;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 
+/* ── Botão atualizar ── */
+.btn-att{display:flex;align-items:center;gap:6px;margin-left:14px;padding:6px 12px;
+  background:transparent;border:1px solid var(--line);color:var(--ink2);cursor:pointer;
+  font-family:inherit;font-size:8px;font-weight:800;letter-spacing:.13em;
+  text-transform:uppercase;transition:.15s;white-space:nowrap;}
+.btn-att:hover:not(:disabled){border-color:var(--red);color:#fff;}
+.btn-att:disabled{opacity:.5;cursor:default;}
+.btn-att.girando svg{animation:girar .9s linear infinite;}
+@keyframes girar{to{transform:rotate(360deg)}}
+@media(max-width:768px){.btn-att span{display:none;}.btn-att{padding:6px 9px;margin-left:8px;}}
+
 /* ═══ TABS ═══ */
 .tabs{position:sticky;top:56px;z-index:49;display:flex;background:#040404;
   border-bottom:1px solid var(--line);padding:0 24px;overflow-x:auto;scrollbar-width:none;}
@@ -244,6 +255,12 @@ tfoot td{border-top:1px solid var(--line);border-bottom:none;
     <div class="hstat"><div class="hstat-v" id="h-marg">—</div><div class="hstat-l">margem</div></div>
     <div class="hstat"><div class="hstat-v" id="h-folha">—</div><div class="hstat-l">% folha</div></div>
     <div class="live"><div class="dot" id="dot"></div><span id="ts">carregando…</span></div>
+    <button class="btn-att" id="btn-att" title="Reler a planilha agora">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      <span>Atualizar</span>
+    </button>
   </div>
 </div>
 
@@ -597,6 +614,18 @@ tfoot td{border-top:1px solid var(--line);border-bottom:none;
    Fonte: Supabase, sincronizado a partir da DRE_FALCON (semanal),
    da planilha de clientes (NPS) e da aba de oportunidades (diária).
    ══════════════════════════════════════════════════════════════ */
+
+/* ┌──────────────────────────────────────────────────────────────┐
+   │ FONTE DOS DADOS                                              │
+   │                                                              │
+   │ Cole aqui a URL do Web App do Apps Script (termina em /exec) │
+   │ e o dashboard passa a ler a planilha ao vivo. Instruções em  │
+   │ sync/Falcon_WebApp.gs.                                       │
+   │                                                              │
+   │ Deixando vazio, ele lê do Supabase — que é o que já está     │
+   │ funcionando hoje.                                            │
+   └──────────────────────────────────────────────────────────────┘ */
+const SHEETS_API='';
 
 const SB='https://mzwynanvhojzyoirvxkc.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16d3luYW52aG9qenlvaXJ2eGtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5Mjc3NjEsImV4cCI6MjEwMTUwMzc2MX0.UniVWAVDJgyHo8QGlqXjMeTBulsjEDdZ5nyBWowYO2s';
@@ -1358,31 +1387,80 @@ function pillsCasc(){
     DRE.map(d=>`<button class="pill${d.label===mesCasc?' on':''}" data-casc="${d.label}">${d.label}</button>`).join('');
 }
 
-async function load(){
+/** Aplica um pacote de dados, venha ele da planilha ou do Supabase. */
+function aplicar(d){
+  DRE=mapDRE(d.dre||[]);
+  FAT=(d.faturamento||[]).map(x=>({...x,valor:+x.valor||0,mes_order:+x.mes_order}));
+  PES=(d.pessoas||[]).map(x=>({...x,salario:+x.salario||0,
+    ativo:x.ativo===undefined?true:!!x.ativo}));
+  NPS=d.nps||[];
+  PAR={}; (d.parametros||[]).forEach(x=>PAR[x.chave]=+x.valor);
+}
+
+/** Planilha ao vivo, via Web App do Apps Script. */
+async function daPlanilha(forcar){
+  const url=SHEETS_API+(SHEETS_API.includes('?')?'&':'?')+
+    (forcar?'forcar=1&':'')+'t='+Date.now();
+  const r=await fetch(url,{redirect:'follow'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(d.erro)throw new Error(d.erro);
+  if(!Array.isArray(d.dre)||!d.dre.length)throw new Error('planilha sem meses de DRE');
+  return d;
+}
+
+/** Cache no Supabase — usado quando o Web App não está configurado ou falha. */
+async function doCache(){
+  const [mm,ff,fp,fn,pa]=await Promise.all([
+    q('monthly_metrics','order=month_order.asc'),
+    q('falcon_faturamento','order=mes_order.desc,valor.desc'),
+    q('falcon_pessoas','order=ordem.asc'),
+    q('falcon_nps','order=mes_order.asc'),
+    q('falcon_parametros')
+  ]);
+  return {dre:mm||[],faturamento:ff||[],pessoas:fp||[],nps:fn||[],parametros:pa||[]};
+}
+
+let carregando=false;
+async function load(manual){
+  if(carregando)return;
+  carregando=true;
+  const btn=document.getElementById('btn-att');
+  btn.disabled=true; btn.classList.add('girando');
+  if(manual)live('ok','atualizando…');
+
   try{
-    const [mm,ff,fp,fo,fn,pa]=await Promise.all([
-      q('monthly_metrics','order=month_order.asc'),
-      q('falcon_faturamento','order=mes_order.desc,valor.desc'),
-      q('falcon_pessoas','order=ordem.asc'),
-      q('falcon_opportunities','order=id.asc'),
-      q('falcon_nps','order=mes_order.asc'),
-      q('falcon_parametros')
-    ]);
-    DRE=mapDRE(mm||[]);
-    FAT=(ff||[]).map(x=>({...x,valor:+x.valor||0,mes_order:+x.mes_order}));
-    PES=(fp||[]).map(x=>({...x,salario:+x.salario||0}));
-    OPP=mapOpp(fo||[]);
-    NPS=fn||[];
-    PAR={}; (pa||[]).forEach(x=>PAR[x.chave]=+x.valor);
+    let d=null,origem='cache',aviso='';
+    if(SHEETS_API){
+      try{ d=await daPlanilha(manual); origem='planilha'; }
+      catch(e){
+        console.warn('Web App indisponível, caindo para o cache:',e);
+        aviso=' · planilha fora do ar, mostrando o último sync';
+      }
+    }
+    if(!d) d=await doCache();
+    aplicar(d);
+
+    // Oportunidades vivem noutra planilha; seguem vindo do Supabase.
+    try{ OPP=mapOpp(await q('falcon_opportunities','order=id.asc')); }
+    catch(e){ console.warn('Oportunidades indisponíveis:',e); OPP=[]; }
 
     if(!DRE.length){live('err','sem dados na DRE');return;}
     heroKPIs();gFat();gBreak();gRec();gMarg();gFolha();
     pillsCasc();gCasc();tDRE();
     renderCli();renderPes();renderNPS();renderMetas();renderOpp();
-    live('ok','atualizado '+new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}));
+
+    const hora=new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+    live(aviso?'stale':'ok',
+      (origem==='planilha'?'planilha · ':'cache · ')+hora+aviso);
+    document.getElementById('fin-fonte').textContent=
+      origem==='planilha'?'DRE_FALCON · ao vivo':'DRE_FALCON · último sync';
   }catch(e){
     console.error('Falha ao carregar:',e);
     live('err','falha ao atualizar · '+e.message);
+  }finally{
+    carregando=false;
+    btn.disabled=false; btn.classList.remove('girando');
   }
 }
 
@@ -1412,9 +1490,11 @@ document.getElementById('opp-pills').addEventListener('click',e=>{
   mesOpp=b.dataset.opp;renderOpp();
 });
 
+document.getElementById('btn-att').addEventListener('click',()=>load(true));
+
 /* ═══════════ INIT ═══════════ */
 load();
-setInterval(load,REFRESH);
+setInterval(()=>load(),REFRESH);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
 </script>
 </body>
