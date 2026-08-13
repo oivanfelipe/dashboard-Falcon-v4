@@ -15,12 +15,13 @@ Aba de oportunidades        ─────> falcon_opportunities ─┘    volt
 
 ## Cadência de atualização
 
-| Fonte | Frequência real | Como chega no dashboard |
-|---|---|---|
-| DRE_FALCON | semanal | Apps Script: `onEdit` + a cada 2h |
-| Faturamento por cliente | semanal (mesma planilha) | idem |
-| Salários / time | quando muda | idem |
-| Oportunidades | diária | Apps Script na planilha de oportunidades |
+| Fonte | Planilha | Script | Gatilhos |
+|---|---|---|---|
+| DRE mensal | DRE_FALCON | `DRE_Falcon_Sync.gs` | `onEdit` + 2h |
+| Faturamento por cliente | DRE_FALCON | idem | idem |
+| Salários / time | DRE_FALCON | idem | idem |
+| NPS · CSAT · comentários | planilha de clientes, aba NPS | `NPS_Sync.gs` | `onEdit` + 6h |
+| Oportunidades | planilha de oportunidades | ainda manual | — |
 
 O `index.html` busca o Supabase **a cada 3 minutos** e também sempre que a
 aba volta a ficar visível. O ponto verde no canto superior direito mostra o
@@ -72,6 +73,8 @@ de mês da cascata e na tabela da DRE.
 | `monthly_metrics` | uma linha por mês da DRE | `month_order, year` |
 | `falcon_faturamento` | um lançamento por linha das abas mensais | `ano, mes_order, linha` |
 | `falcon_pessoas` | time ativo com salário | troca completa a cada sync |
+| `falcon_nps` | NPS, CSAT, 6 drivers e comentário por cliente/mês | troca completa do ano |
+| `falcon_parametros` | ponto de equilíbrio e metas do squad | `chave` |
 | `falcon_opportunities` | pipeline comercial | `id` |
 
 `falcon_faturamento` é apagada e reinserida por mês a cada sync, porque
@@ -79,3 +82,36 @@ linhas podem ser removidas da planilha. Por isso a chave é a **posição da
 linha** (`linha`) e não cliente+discriminação: o mesmo cliente aparece
 várias vezes com a mesma descrição no mesmo mês (ex.: Viagem do Sonho
 Bispo / Performance Inside Sales, 3× em agosto).
+
+
+## Instalação do sync de NPS
+
+Mesma receita, mas na **planilha de clientes** (a que tem a aba `NPS - Q2`):
+cole [`NPS_Sync.gs`](./NPS_Sync.gs), configure `SUPABASE_URL` e
+`SUPABASE_SERVICE_KEY`, rode `dryRunNPS`, depois `sincronizarNPS` e
+`instalarGatilhosNPS`.
+
+Opcionalmente defina `ABA_NPS` com o nome exato da aba. Sem isso o script
+procura sozinho a primeira aba que tenha um cabeçalho com `STATUS`, `NPS` e
+`CSAT` — então trocar `NPS - Q2` por `NPS - Q3` no fim do trimestre não
+quebra nada.
+
+Só as linhas com `SQUAD = FALCON` são sincronizadas.
+
+## Parâmetros do squad
+
+`falcon_parametros` guarda o que hoje está fixo no bloco **PEQUILIBRIO** da
+DRE_FALCON e alimenta o medidor de ponto de equilíbrio e a aba de Metas:
+
+| Chave | Valor atual | O que é |
+|---|---|---|
+| `breakeven_faturamento` | R$ 113.500 | faturamento em que a margem zera |
+| `breakeven_folha` | R$ 109.000 | faturamento que põe a folha em 30% |
+| `meta_folha_pct` | 27 | meta de % folha |
+| `meta_fat_cabeca` | R$ 19.000 | meta de faturamento por pessoa |
+| `meta_nps` | 70 | meta de NPS |
+| `meta_csat` | 4 | meta de CSAT (escala 1–5) |
+
+Esses valores mudam quando o time muda de tamanho. Hoje são atualizados à
+mão (`update falcon_parametros set valor = … where chave = …`); o parser da
+DRE ainda não lê o bloco PEQUILIBRIO automaticamente.
