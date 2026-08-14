@@ -36,6 +36,9 @@
 /** Planilha de clientes, onde fica a aba de NPS. */
 var ID_PLANILHA_NPS = '142eHl3Y6YGfMYykGbjgGvxWCWArRFzGHA9bviPEb5Nc';
 
+/** Planilha onde fica a aba de oportunidades. */
+var ID_PLANILHA_OPORTUNIDADES = '1QTksU0kN_jOkSovEVr6OfAtHu-kkCDYGz4p6_o_LNIw';
+
 /** Segundos que a resposta fica em cache no Apps Script. Evita reler a
  *  planilha inteira a cada visita; o botão Atualizar ignora o cache. */
 var CACHE_SEG = 120;
@@ -70,13 +73,104 @@ function _json(texto) {
 
 function montarPayload() {
   return {
-    atualizadoEm: new Date().toISOString(),
-    dre:          lerDRE(),          // de DRE_Falcon_Sync.gs
-    pessoas:      lerPessoas(),      // idem
-    faturamento:  lerFaturamento(),  // idem
-    nps:          lerNPSDaOutraPlanilha(),
-    parametros:   lerParametros()
+    atualizadoEm:  new Date().toISOString(),
+    dre:           lerDRE(),          // de DRE_Falcon_Sync.gs
+    pessoas:       lerPessoas(),      // idem
+    faturamento:   lerFaturamento(),  // idem
+    nps:           lerNPSDaOutraPlanilha(),
+    oportunidades: lerOportunidades(),
+    parametros:    lerParametros()
   };
+}
+
+// ─── Oportunidades, lidas da planilha de account planning ──────────
+
+/** Estágios que a tabela do dashboard reconhece. */
+var _ESTAGIOS = ['Identificada','Proposta','Validada','Ganha','Perdida'];
+
+/**
+ * A aba tem um cabeçalho nomeado (Cliente, Squad, Oportunidade, Estágio,
+ * Valor Proposta Prevista, Valor Fechamento, Mês Ass. Previsto…).
+ * As colunas são localizadas pelo nome, então reordenar a planilha não
+ * quebra a leitura. Só as linhas com Squad = FALCON entram.
+ */
+function lerOportunidades() {
+  var ss;
+  try {
+    ss = SpreadsheetApp.openById(ID_PLANILHA_OPORTUNIDADES);
+  } catch (err) {
+    Logger.log('Oportunidades: não consegui abrir a planilha (%s)', err);
+    return [];
+  }
+
+  var COLUNAS = {
+    cliente:          ['CLIENTE'],
+    squad:            ['SQUAD'],
+    oportunidade:     ['OPORTUNIDADE'],
+    produto:          ['PRODUTO V4','PRODUTO'],
+    estagio:          ['ESTÁGIO','ESTAGIO'],
+    valor_proposta:   ['VALOR PROPOSTA PREVISTA','VALOR PROPOSTA'],
+    valor_fechamento: ['VALOR FECHAMENTO'],
+    data_prevista:    ['MÊS ASS. PREVISTO','MES ASS. PREVISTO','MÊS PREVISTO'],
+    responsavel:      ['RESPONSÁVEL','RESPONSAVEL'],
+    proximo_passo:    ['PRÓXIMO PASSO','PROXIMO PASSO'],
+    observacoes:      ['OBSERVAÇÕES','OBSERVACOES']
+  };
+
+  // Aba cujo cabeçalho tem Cliente + Oportunidade + Estágio
+  var g = null, rCab = -1, col = {};
+  var abas = ss.getSheets();
+  for (var i = 0; i < abas.length && rCab < 0; i++) {
+    var grade = abas[i].getDataRange().getDisplayValues();
+    for (var r = 0; r < Math.min(grade.length, 12); r++) {
+      var mapa = {}, achou = 0;
+      for (var c = 0; c < grade[r].length; c++) {
+        var t = _norm(grade[r][c]);
+        for (var campo in COLUNAS) {
+          if (mapa[campo] !== undefined) continue;
+          if (COLUNAS[campo].indexOf(t) >= 0) { mapa[campo] = c; achou++; }
+        }
+      }
+      if (mapa.cliente !== undefined && mapa.oportunidade !== undefined &&
+          mapa.estagio !== undefined) {
+        g = grade; rCab = r; col = mapa; break;
+      }
+    }
+  }
+  if (rCab < 0) { Logger.log('Oportunidades: cabeçalho não encontrado.'); return []; }
+
+  var pega = function (linha, campo) {
+    return col[campo] === undefined ? '' : String(linha[col[campo]] || '').trim();
+  };
+
+  var itens = [];
+  for (var r2 = rCab + 1; r2 < g.length; r2++) {
+    var linha = g[r2];
+    var cliente = pega(linha, 'cliente');
+    if (!cliente) continue;
+    if (col.squad !== undefined && _norm(linha[col.squad]) !== 'FALCON') continue;
+
+    // Normaliza o estágio para um dos valores conhecidos
+    var estBruto = _norm(pega(linha, 'estagio')), estagio = null;
+    for (var k = 0; k < _ESTAGIOS.length; k++) {
+      if (_norm(_ESTAGIOS[k]) === estBruto) { estagio = _ESTAGIOS[k]; break; }
+    }
+    if (!estagio) continue;   // linha em branco ou estágio fora do padrão
+
+    itens.push({
+      cliente:          cliente,
+      oportunidade:     pega(linha, 'oportunidade') || null,
+      produto:          pega(linha, 'produto') || null,
+      estagio:          estagio,
+      valor_proposta:   _num(pega(linha, 'valor_proposta')),
+      valor_fechamento: _num(pega(linha, 'valor_fechamento')),
+      responsavel:      pega(linha, 'responsavel') || null,
+      proximo_passo:    pega(linha, 'proximo_passo') || null,
+      data_prevista:    pega(linha, 'data_prevista') || null,
+      observacoes:      pega(linha, 'observacoes') || null
+    });
+  }
+  return itens;
 }
 
 // ─── Ponto de equilíbrio (bloco PEQUILIBRIO da DRE) ────────────────
@@ -236,6 +330,15 @@ function testarWebApp() {
 
   var resp = d.nps.filter(function (n) { return n.status === 'respondida'; });
   Logger.log('NPS .......... %s registros · %s respondidas', d.nps.length, resp.length);
+
+  var porEstagio = {};
+  d.oportunidades.forEach(function (o) {
+    porEstagio[o.estagio] = (porEstagio[o.estagio] || 0) + 1;
+  });
+  Logger.log('Oportunidades. %s', d.oportunidades.length);
+  Object.keys(porEstagio).forEach(function (e) {
+    Logger.log('   %s: %s', e, porEstagio[e]);
+  });
 
   Logger.log('Parâmetros ...');
   d.parametros.forEach(function (p) { Logger.log('   %s = %s', p.chave, p.valor); });

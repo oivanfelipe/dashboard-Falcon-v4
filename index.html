@@ -1394,6 +1394,7 @@ function aplicar(d){
   PES=(d.pessoas||[]).map(x=>({...x,salario:+x.salario||0,
     ativo:x.ativo===undefined?true:!!x.ativo}));
   NPS=d.nps||[];
+  OPP=mapOpp(d.oportunidades||[]);
   PAR={}; (d.parametros||[]).forEach(x=>PAR[x.chave]=+x.valor);
 }
 
@@ -1411,14 +1412,16 @@ async function daPlanilha(forcar){
 
 /** Cache no Supabase — usado quando o Web App não está configurado ou falha. */
 async function doCache(){
-  const [mm,ff,fp,fn,pa]=await Promise.all([
+  const [mm,ff,fp,fn,fo,pa]=await Promise.all([
     q('monthly_metrics','order=month_order.asc'),
     q('falcon_faturamento','order=mes_order.desc,valor.desc'),
     q('falcon_pessoas','order=ordem.asc'),
     q('falcon_nps','order=mes_order.asc'),
+    q('falcon_opportunities','order=id.asc'),
     q('falcon_parametros')
   ]);
-  return {dre:mm||[],faturamento:ff||[],pessoas:fp||[],nps:fn||[],parametros:pa||[]};
+  return {dre:mm||[],faturamento:ff||[],pessoas:fp||[],
+          nps:fn||[],oportunidades:fo||[],parametros:pa||[]};
 }
 
 let carregando=false;
@@ -1440,10 +1443,6 @@ async function load(manual){
     }
     if(!d) d=await doCache();
     aplicar(d);
-
-    // Oportunidades vivem noutra planilha; seguem vindo do Supabase.
-    try{ OPP=mapOpp(await q('falcon_opportunities','order=id.asc')); }
-    catch(e){ console.warn('Oportunidades indisponíveis:',e); OPP=[]; }
 
     if(!DRE.length){live('err','sem dados na DRE');return;}
     heroKPIs();gFat();gBreak();gRec();gMarg();gFolha();
