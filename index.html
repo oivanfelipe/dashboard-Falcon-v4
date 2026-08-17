@@ -255,7 +255,7 @@ tfoot td{border-top:1px solid var(--line);border-bottom:none;
     <div class="hstat"><div class="hstat-v" id="h-marg">—</div><div class="hstat-l">margem</div></div>
     <div class="hstat"><div class="hstat-v" id="h-folha">—</div><div class="hstat-l">% folha</div></div>
     <div class="live"><div class="dot" id="dot"></div><span id="ts">carregando…</span></div>
-    <button class="btn-att" id="btn-att" title="Reler a planilha agora">
+    <button class="btn-att" id="btn-att" title="Buscar os números mais recentes agora">
       <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
         stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
@@ -631,9 +631,11 @@ const SB='https://mzwynanvhojzyoirvxkc.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16d3luYW52aG9qenlvaXJ2eGtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5Mjc3NjEsImV4cCI6MjEwMTUwMzc2MX0.UniVWAVDJgyHo8QGlqXjMeTBulsjEDdZ5nyBWowYO2s';
 const REFRESH=3*60*1000;
 
+/* cache:'no-store' é o que garante que o botão Atualizar não devolva
+   uma resposta antiga guardada pelo navegador. */
 async function q(tabela,qs){
   const r=await fetch(`${SB}/rest/v1/${tabela}?select=*${qs?'&'+qs:''}`,
-    {headers:{apikey:KEY,Authorization:`Bearer ${KEY}`}});
+    {headers:{apikey:KEY,Authorization:`Bearer ${KEY}`},cache:'no-store'});
   if(!r.ok)throw new Error(`${tabela}: HTTP ${r.status}`);
   return r.json();
 }
@@ -1402,7 +1404,7 @@ function aplicar(d){
 async function daPlanilha(forcar){
   const url=SHEETS_API+(SHEETS_API.includes('?')?'&':'?')+
     (forcar?'forcar=1&':'')+'t='+Date.now();
-  const r=await fetch(url,{redirect:'follow'});
+  const r=await fetch(url,{redirect:'follow',cache:'no-store'});
   if(!r.ok)throw new Error('HTTP '+r.status);
   const d=await r.json();
   if(d.erro)throw new Error(d.erro);
