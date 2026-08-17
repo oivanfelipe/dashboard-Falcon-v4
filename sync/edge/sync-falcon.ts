@@ -15,6 +15,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  *     "pessoas":     [ ...falcon_pessoas... ],
  *     "faturamento": [ ...falcon_faturamento... ],
  *     "nps":         [ ...falcon_nps... ],
+ *     "metas":       [ ...falcon_metas... ],
  *     "parametros":  [ { chave, valor, rotulo } ]
  *   }
  */
@@ -114,6 +115,16 @@ Deno.serve(async (req: Request) => {
     const { error } = await db.from("falcon_nps").insert(nps);
     if (error) throw error;
     resumo.nps = nps.length;
+  });
+
+  // ── Metas: troca completa (indicadores e pesos podem mudar de mês a mês) ──
+  const metas = arr("metas");
+  if (metas?.length) await guard("metas", async () => {
+    const del = await db.from("falcon_metas").delete().gt("id", 0);
+    if (del.error) throw del.error;
+    const { error } = await db.from("falcon_metas").insert(metas);
+    if (error) throw error;
+    resumo.metas = metas.length;
   });
 
   // ── Parâmetros: upsert por chave ──

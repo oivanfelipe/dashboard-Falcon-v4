@@ -144,8 +144,29 @@ de mês da cascata e na tabela da DRE.
 | `falcon_faturamento` | um lançamento por linha das abas mensais | `ano, mes_order, linha` |
 | `falcon_pessoas` | time ativo com salário | troca completa a cada sync |
 | `falcon_nps` | NPS, CSAT, 6 drivers e comentário por cliente/mês | troca completa do ano |
-| `falcon_parametros` | ponto de equilíbrio e metas do squad | `chave` |
+| `falcon_metas` | placar semanal ponderado (peso, meta, 5 semanas, atingimento) | troca completa a cada sync |
+| `falcon_parametros` | ponto de equilíbrio, metas de referência e o resumo do placar (atingimento total, desconto aplicado) | `chave` |
 | `falcon_opportunities` | pipeline comercial | `id` |
+
+### NPS e Metas vivem na mesma planilha
+
+As duas abas (`NPS - Q2` e `Metas`) estão na planilha de **clientes**, não
+na DRE_FALCON. `NPS_Sync.gs` lê as duas e manda tudo num único POST — por
+isso rodar `sincronizarNPS` sincroniza NPS e Metas juntos.
+
+**A aba de NPS é uma lista curada, não todos os clientes ativos.** Ela só
+tem linha para os clientes que alguém cadastrou lá — hoje isso é bem menor
+que a carteira ativa do squad. O dashboard mostra essa lacuna direto no
+tile "Clientes na pesquisa" (ex.: `5 / 20`), comparando com a lista de
+clientes que faturaram no mês. Se a lacuna for grande, o ajuste é na
+planilha (cadastrar os clientes que faltam), não no sync.
+
+A aba de Metas tem um cabeçalho `PESO | META` seguido de uma coluna por
+semana (datas `dd/mm/aaaa`); o parser acha essas colunas pela posição, não
+por nome — funciona mesmo trocando os indicadores ou as datas de mês a
+mês. As duas linhas de resumo no fim da tabela ("atingimento da meta" e
+"desconto aplicado") viram os parâmetros `metas_atingimento_total` e
+`metas_desconto_aplicado`.
 
 `falcon_faturamento` é apagada e reinserida por mês a cada sync, porque
 linhas podem ser removidas da planilha. Por isso a chave é a **posição da

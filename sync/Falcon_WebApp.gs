@@ -72,6 +72,12 @@ function _json(texto) {
 }
 
 function montarPayload() {
+  var metas = lerMetas();
+  var parametros = lerParametros().concat(
+    Object.keys(metas.resumo).map(function (k) {
+      return { chave: k, valor: metas.resumo[k], rotulo: 'Metas · ' + k };
+    })
+  );
   return {
     atualizadoEm:  new Date().toISOString(),
     dre:           lerDRE(),          // de DRE_Falcon_Sync.gs
@@ -79,7 +85,8 @@ function montarPayload() {
     faturamento:   lerFaturamento(),  // idem
     nps:           lerNPSDaOutraPlanilha(),
     oportunidades: lerOportunidades(),
-    parametros:    lerParametros()
+    metas:         metas.itens,
+    parametros:    parametros
   };
 }
 
@@ -304,6 +311,104 @@ function lerNPSDaOutraPlanilha() {
   return itens;
 }
 
+// ─── Metas, lidas da mesma planilha do NPS ──────────────────────────
+
+/**
+ * A aba de Metas tem um cabeçalho "PESO | META" seguido de uma coluna
+ * por semana (datas dd/mm/aaaa). O indicador fica na coluna à esquerda
+ * de PESO; depois das semanas vêm o % de atingimento e uma nota — nessa
+ * ordem, sem rótulo próprio, então são localizadas pela posição relativa
+ * ao cabeçalho, não por texto fixo (a planilha não rotula essas duas).
+ *
+ * Duas linhas sem indicador fecham a tabela: a de total (peso "100%",
+ * nota "atingimento da meta") e a linha seguinte ("desconto aplicado").
+ * Essas duas viram parâmetros, não itens.
+ */
+var _DATA_RE_WA = /^\d{2}\/\d{2}\/\d{4}$/;
+
+function lerMetas() {
+  var ss;
+  try {
+    ss = SpreadsheetApp.openById(ID_PLANILHA_NPS);
+  } catch (err) {
+    Logger.log('Metas: não consegui abrir a planilha (%s)', err);
+    return { itens: [], resumo: {} };
+  }
+
+  var g = null, rCab = -1, cPeso = -1;
+  var abas = ss.getSheets();
+  for (var i = 0; i < abas.length && rCab < 0; i++) {
+    var grade = abas[i].getDataRange().getDisplayValues();
+    for (var r = 0; r < grade.length && rCab < 0; r++) {
+      for (var c = 0; c < grade[r].length - 1; c++) {
+        if (_norm(grade[r][c]) === 'PESO' && _norm(grade[r][c + 1]) === 'META') {
+          g = grade; rCab = r; cPeso = c; break;
+        }
+      }
+    }
+  }
+  if (rCab < 0) { Logger.log('Metas: cabeçalho PESO/META não encontrado.'); return { itens: [], resumo: {} }; }
+
+  var cIndicador = cPeso - 1, cMeta = cPeso + 1;
+  var semanaCols = [];
+  for (var c2 = cMeta + 1; c2 < g[rCab].length; c2++) {
+    var t = String(g[rCab][c2] || '').trim();
+    if (_DATA_RE_WA.test(t)) semanaCols.push({ col: c2, label: t.slice(0, 5) });
+    else break;
+  }
+  var cAting = cMeta + 1 + semanaCols.length;
+  var cNota  = cAting + 1;
+
+  var itens = [], resumo = {};
+  for (var r2 = rCab + 1; r2 < g.length; r2++) {
+    var linha = g[r2];
+    var indicador = String(linha[cIndicador] || '').trim();
+    var pesoBruto = String(linha[cPeso] || '').trim();
+    var atingBruto = String(linha[cAting] || '').trim();
+    var notaBruto = String(linha[cNota] || '').trim();
+
+    if (!indicador) {
+      var notaNorm = _norm(notaBruto);
+      if (notaNorm.indexOf('ATINGIMENTO DA META') >= 0) {
+        resumo.metas_atingimento_total = _num(atingBruto);
+      } else if (notaNorm.indexOf('DESCONTO APLICADO') >= 0) {
+        resumo.metas_desconto_aplicado = _num(atingBruto);
+      }
+      // linha totalmente vazia (indicador + peso + atingimento) encerra a tabela
+      if (!pesoBruto && !atingBruto && !notaBruto) break;
+      continue;
+    }
+
+    itens.push({
+      indicador: indicador,
+      ordem: itens.length + 1,
+      peso_pct: _num(pesoBruto),
+      meta: String(linha[cMeta] || '').trim() || null,
+      semanas: semanaCols.map(function (s) {
+        var v = String(linha[s.col] || '').trim();
+        return { label: s.label, valor: v || null };
+      }),
+      atingimento_pct: atingBruto ? _num(atingBruto) : null,
+      nota: notaBruto || null
+    });
+  }
+
+  // Frase com a regra do bônus, ex.: "VALOR 100% DA META - 0,8% do
+  // faturamento do mês de referência" — extrai só o número.
+  for (var r3 = rCab; r3 < g.length; r3++) {
+    for (var c3 = 0; c3 < g[r3].length; c3++) {
+      var texto = String(g[r3][c3] || '').trim();
+      if (_norm(texto).indexOf('VALOR 100% DA META') === 0) {
+        var m = texto.match(/(\d+(?:[.,]\d+)?)\s*%/);
+        if (m) resumo.metas_valor_100pct_fat_pct = parseFloat(m[1].replace(',', '.'));
+        r3 = g.length; break;
+      }
+    }
+  }
+
+  return { itens: itens, resumo: resumo };
+}
+
 // ─── Diagnóstico ───────────────────────────────────────────────────
 
 /** Monta o payload e escreve um resumo no log, sem publicar nada. */
@@ -338,6 +443,13 @@ function testarWebApp() {
   Logger.log('Oportunidades. %s', d.oportunidades.length);
   Object.keys(porEstagio).forEach(function (e) {
     Logger.log('   %s: %s', e, porEstagio[e]);
+  });
+
+  Logger.log('Metas ......... %s indicadores · peso total %s%%', d.metas.length,
+    d.metas.reduce(function (s, m) { return s + (m.peso_pct || 0); }, 0));
+  d.metas.forEach(function (m) {
+    Logger.log('   %s · peso %s%% · meta %s · atingimento %s',
+      m.indicador, m.peso_pct, m.meta, m.atingimento_pct == null ? 'sem dado' : m.atingimento_pct + '%');
   });
 
   Logger.log('Parâmetros ...');
