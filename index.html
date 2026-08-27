@@ -602,7 +602,7 @@ tfoot td{border-top:1px solid var(--line);border-bottom:none;
   <div class="sec">
     <div class="sec-hd"><span class="sec-n">03</span><span class="sec-t" id="opp-t">Oportunidades</span></div>
     <div class="card"><div class="tw"><table>
-      <thead><tr><th>Cliente</th><th>Oportunidade</th><th>Produto</th><th>Estágio</th>
+      <thead><tr><th>Cliente</th><th style="color:var(--ink3)">Squad</th><th>Oportunidade</th><th>Produto</th><th>Estágio</th>
         <th>Mês prev.</th><th>Resp.</th><th class="num">Valor</th></tr></thead>
       <tbody id="tbl-opp"></tbody><tfoot id="tf-opp"></tfoot></table></div></div>
   </div>
@@ -1316,9 +1316,9 @@ function renderMetas(){
 }
 
 /* ═══════════ OPORTUNIDADES ═══════════ */
-const EST=['Identificada','Proposta','Validada','Ganha','Perdida'];
-const EST_C={Identificada:RAMP[1],Proposta:RAMP[3],Validada:RAMP[5],Ganha:P.ok,Perdida:P.bad};
-const EST_B={Identificada:'b-b',Proposta:'b-b',Validada:'b-b',Ganha:'b-ok',Perdida:'b-r'};
+const EST=['Identificada','Proposta','Validada','Ganha','Perdida','Adiada'];
+const EST_C={Identificada:RAMP[1],Proposta:RAMP[3],Validada:RAMP[5],Ganha:P.ok,Perdida:P.bad,Adiada:P.ink3};
+const EST_B={Identificada:'b-b',Proposta:'b-b',Validada:'b-b',Ganha:'b-ok',Perdida:'b-r',Adiada:'b-n'};
 
 function renderOpp(){
   const m=new Map();
@@ -1377,16 +1377,18 @@ function renderOpp(){
       scales:{x:aY(v=>fK(v)),y:{...aX(),ticks:{font:{size:9}}}}}});
 
   document.getElementById('tbl-opp').innerHTML=L.length?L.slice()
-    .sort((x,y)=>(y.valor-x.valor)||x.cliente.localeCompare(y.cliente)).map(o=>`
-    <tr><td class="tn">${o.cliente}</td><td>${o.oportunidade||'—'}</td>
+    .sort((x,y)=>(x.squad||'').localeCompare(y.squad||'')||(y.valor-x.valor)||x.cliente.localeCompare(y.cliente)).map(o=>`
+    <tr><td class="tn">${o.cliente}</td>
+      <td style="color:var(--ink3);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em">${o.squad||'—'}</td>
+      <td>${o.oportunidade||'—'}</td>
       <td style="color:var(--ink3)">${o.produto||'—'}</td>
       <td><span class="bd ${EST_B[o.estagio]||'b-n'}">${o.estagio}</span></td>
       <td style="color:var(--ink4)">${o.lbl||'—'}</td>
       <td style="color:var(--ink3)">${o.responsavel||'—'}</td>
       <td class="num" style="font-weight:700">${o.valor?fBRL(o.valor):'—'}</td></tr>`).join('')
-    :'<tr><td colspan="7" class="empty">Nenhuma oportunidade para este filtro.</td></tr>';
+    :'<tr><td colspan="8" class="empty">Nenhuma oportunidade para este filtro.</td></tr>';
   document.getElementById('tf-opp').innerHTML=L.length
-    ?`<tr><td colspan="6">Total (${L.length})</td>
+    ?`<tr><td colspan="7">Total (${L.length})</td>
       <td class="num">${fBRL(L.reduce((s,o)=>s+o.valor,0))}</td></tr>`:'';
 }
 
@@ -1404,7 +1406,7 @@ const mapDRE=r=>r.map(x=>({label:x.month_label,order:x.month_order,ano:x.year,
 const mapOpp=r=>r.map(x=>{let o=null,l=null;
   if(x.data_prevista){const [m]=String(x.data_prevista).split('-');
     o=ORD[m.toLowerCase()]||null; if(o)l=SIG[o];}
-  return{cliente:x.cliente,oportunidade:x.oportunidade,produto:x.produto,
+  return{cliente:x.cliente,squad:x.squad||'',oportunidade:x.oportunidade,produto:x.produto,
     estagio:x.estagio,responsavel:x.responsavel,ord:o,lbl:l,
     valor:x.valor_fechamento!=null?+x.valor_fechamento
       :(x.valor_proposta!=null?+x.valor_proposta:0)};});
